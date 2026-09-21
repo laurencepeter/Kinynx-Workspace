@@ -1,0 +1,18 @@
+# Caddy reverse proxy. Terminates TLS (auto-HTTPS in production) and routes
+# /api + /health to the API, everything else to the web client.
+#
+# For a public deployment, replace `:80` with your domain and Caddy will
+# provision a certificate automatically. For air-gapped/LAN, `:80` is fine.
+
+:80 {
+	encode gzip
+
+	@api path /api/* /health
+	handle @api {
+		reverse_proxy api:4000
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
+}

@@ -1,0 +1,23 @@
+Kinynx Enterprise License (Commercial)
+SPDX-License-Identifier: LicenseRef-Kinynx-Enterprise
+
+Copyright (c) Kinynx.
+
+The contents of this `enterprise/` directory are NOT covered by the Apache
+License 2.0 that governs the rest of this repository. They are made available
+under a separate commercial license.
+
+Summary (non-binding; the executed commercial agreement governs):
+
+  - You may READ this source code and use it for evaluation and development.
+  - Running these modules in production requires a valid Kinynx Enterprise
+    subscription / license key.
+  - You may NOT redistribute, resell, sublicense, or offer these modules as a
+    hosted service without a written agreement with Kinynx.
+  - No warranty is provided except as stated in your commercial agreement.
+
+Importantly, the Kinynx Community Edition (everything OUTSIDE this directory) is
+fully functional on its own under the Apache License 2.0 and does NOT require any
+code in this directory. Nothing here is necessary to self-host the core product.
+
+For licensing inquiries: sales@kinynx.dev (placeholder).

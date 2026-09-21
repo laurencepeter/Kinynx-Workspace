@@ -1,0 +1,21 @@
+{
+  "name": "kinynx-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kinynx — an open-source, self-hostable collaborative workspace platform (documents, databases, kanban, wikis, templates).",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["argon2"]
+  },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/**\" --filter \"./services/**\" run build",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "dev": "pnpm --filter @kinynx/api run dev",
+    "migrate": "pnpm --filter @kinynx/api run migrate"
+  }
+}
