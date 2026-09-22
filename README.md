@@ -7,6 +7,8 @@ Documents · Wikis · Databases · Kanban · Tasks · Templates · Collaboration
 
 *Genuinely useful for free. Enterprise pays for scale, security, and compliance — never for the basic ability to create documents.*
 
+![CI](https://github.com/laurencepeter/Kinynx-Workspace/actions/workflows/ci.yml/badge.svg)
+
 [Architecture](ARCHITECTURE.md) · [API](docs/API.md) · [Database](docs/DATABASE.md) · [Permissions](docs/PERMISSIONS.md) · [Licensing](docs/LICENSING.md) · [Templates](docs/TEMPLATE_SPEC.md) · [Deploy](docs/DEPLOYMENT.md) · [Security](SECURITY.md)
 
 </div>
