@@ -37,6 +37,11 @@ short-lived JWTs (15 min default); rotate with the refresh token.
 | GET | `/api/auth/oidc/status` | whether OIDC/OAuth SSO is configured |
 | GET | `/api/auth/oidc/login` | begin SSO — returns the IdP authorize URL |
 | GET | `/api/auth/oidc/callback` | code exchange → session (provisions user by email) |
+| POST | `/api/auth/mfa/setup` | Begin TOTP enrollment → secret + otpauth URI |
+| POST | `/api/auth/mfa/enable` · `/disable` | Confirm/remove MFA with a code |
+
+When MFA is enabled, `/api/auth/login` requires a `code`; without it the reply is
+`401 { mfa_required: true }`.
 
 A **session** is `{ access_token, refresh_token, token_type: "Bearer", expires_in }`.
 

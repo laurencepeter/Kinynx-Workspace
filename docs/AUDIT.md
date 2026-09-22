@@ -7,7 +7,7 @@ Updated as the build progresses.
 |---|---|---|---|
 | 1 | Three-tier business model | ✅ | `packages/shared` entitlements (community/team/enterprise) |
 | 2 | Configurable Team limits | ✅ | Limits are data, not hard-coded; license can override |
-| 3 | Enterprise features | 🟡 | LDAP/Authentik sync ✅, OIDC login ✅, custom roles ✅, audit ✅, retention + legal hold ✅; SAML, IP allowlist, MFA policies ⛔ |
+| 3 | Enterprise features | 🟡 | LDAP/Authentik sync ✅, OIDC login ✅, custom roles ✅, audit ✅, retention + legal hold ✅, TOTP MFA ✅; SAML, IP allowlist, org-wide MFA policy ⛔ |
 | 4 | Core/Enterprise license split | ✅ | Apache-2.0 core; `/enterprise` commercial; no core→enterprise imports |
 | 5 | Block-based editor (data model) | ✅ | First-class `blocks`; rich editor UI is minimal (reference client) |
 | 6 | Database system | ✅ | Properties, records, views, report, **formulas + rollups** ✅; board/calendar/timeline are client rendering of stored views |

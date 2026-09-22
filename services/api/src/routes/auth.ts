@@ -4,6 +4,7 @@ import { query } from "../db/pool.js";
 import { randomBytes } from "node:crypto";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { hashToken, newRefreshToken, signAccessToken } from "../auth/tokens.js";
+import { generateSecret, otpauthUri, verifyTotp } from "../auth/totp.js";
 
 const credentials = z.object({
   email: z.string().email(),
@@ -16,6 +17,8 @@ interface UserRow {
   email: string;
   display_name: string;
   password_hash: string | null;
+  mfa_secret?: string | null;
+  mfa_enabled?: boolean;
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
@@ -65,10 +68,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
   // POST /api/auth/login
   app.post("/api/auth/login", async (request, reply) => {
-    const body = z.object({ email: z.string().email(), password: z.string() }).parse(request.body);
+    const body = z.object({ email: z.string().email(), password: z.string(), code: z.string().optional() }).parse(request.body);
     const rows = await query<UserRow>(
       app.db,
-      "SELECT id, email, display_name, password_hash FROM users WHERE email_norm = lower($1) AND is_active",
+      "SELECT id, email, display_name, password_hash, mfa_secret, mfa_enabled FROM users WHERE email_norm = lower($1) AND is_active",
       [body.email],
     );
     const user = rows[0];
@@ -78,8 +81,42 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       : await verifyPassword("$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHR2YWx1ZQ$0000000000000000000000000000000000000000000", body.password);
     if (!user || !ok) return reply.code(401).send({ error: "invalid credentials" });
 
+    // Second factor when enrolled.
+    if (user.mfa_enabled && user.mfa_secret) {
+      if (!body.code) return reply.code(401).send({ error: "mfa code required", mfa_required: true });
+      if (!verifyTotp(user.mfa_secret, body.code)) return reply.code(401).send({ error: "invalid mfa code", mfa_required: true });
+    }
+
     const session = await issueSession(user, request.headers["user-agent"], request.ip);
     return reply.send({ user: { id: user.id, email: user.email }, ...session });
+  });
+
+  // ── MFA (TOTP) enrollment ───────────────────────────────────────────────
+  // Begin setup: generate a secret (stored, not yet active) + an otpauth URI.
+  app.post("/api/auth/mfa/setup", { preHandler: app.authenticate }, async (request, reply) => {
+    const secret = generateSecret();
+    await query(app.db, "UPDATE users SET mfa_secret=$2, mfa_enabled=FALSE WHERE id=$1", [request.user!.id, secret]);
+    return reply.send({ secret, otpauth_uri: otpauthUri(secret, request.user!.email) });
+  });
+
+  // Confirm setup with a code from the authenticator app.
+  app.post("/api/auth/mfa/enable", { preHandler: app.authenticate }, async (request, reply) => {
+    const { code } = z.object({ code: z.string() }).parse(request.body);
+    const secret = (await query<{ mfa_secret: string | null }>(app.db, "SELECT mfa_secret FROM users WHERE id=$1", [request.user!.id]))[0]?.mfa_secret;
+    if (!secret) return reply.code(400).send({ error: "run /mfa/setup first" });
+    if (!verifyTotp(secret, code)) return reply.code(400).send({ error: "invalid code" });
+    await query(app.db, "UPDATE users SET mfa_enabled=TRUE WHERE id=$1", [request.user!.id]);
+    return reply.send({ ok: true });
+  });
+
+  // Disable MFA (requires a current code).
+  app.post("/api/auth/mfa/disable", { preHandler: app.authenticate }, async (request, reply) => {
+    const { code } = z.object({ code: z.string() }).parse(request.body);
+    const secret = (await query<{ mfa_secret: string | null }>(app.db, "SELECT mfa_secret FROM users WHERE id=$1 AND mfa_enabled", [request.user!.id]))[0]?.mfa_secret;
+    if (!secret) return reply.code(400).send({ error: "mfa not enabled" });
+    if (!verifyTotp(secret, code)) return reply.code(400).send({ error: "invalid code" });
+    await query(app.db, "UPDATE users SET mfa_enabled=FALSE, mfa_secret=NULL WHERE id=$1", [request.user!.id]);
+    return reply.code(204).send();
   });
 
   // POST /api/auth/refresh — rotate refresh token.
