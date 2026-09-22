@@ -59,11 +59,9 @@ pnpm test
 The Community Edition is **never** crippled to force upgrades, and it keeps
 working even if a license server is unreachable. See [LICENSING](docs/LICENSING.md).
 
-## What's in the box (this milestone)
+## What's in the box
 
-This repository implements **Phase 1 — Foundation** as a working vertical slice,
-plus the foundational specifications for later phases:
-
+**Phase 1 — Foundation**
 - ✅ Email/password auth (Argon2id), JWT access + rotating refresh tokens
 - ✅ Multi-tenancy: User → Organization → Workspace → Page → Block
 - ✅ Block-based editor data model (first-class blocks, not JSON blobs)
@@ -71,11 +69,28 @@ plus the foundational specifications for later phases:
 - ✅ Central feature-flag / licensing system with offline Ed25519 verification
 - ✅ Postgres full-text search
 - ✅ Docker Compose deployment (Postgres, Redis, MinIO, Caddy)
+
+**Phase 2 — Collaboration & project management**
+- ✅ **Realtime** presence + live-sync over WebSocket ("who's viewing/editing"),
+  REST mutations broadcast too — no polling
+- ✅ **Groups** (departments/teams) with role grants on workspaces/orgs; the
+  basis for LDAP/Authentik group sync
+- ✅ **Invitations** by email or shareable link (accept → join org/workspace/group)
+- ✅ **Email provider abstraction** — console, SMTP (Mailjet/SendGrid/SES/Postmark/…),
+  or Mailjet REST; swap by env var
+- ✅ **Project databases**: typed properties, **status with color coding**,
+  progress, views, and a **/report** endpoint (counts per status + rollups)
+- ✅ **Versioning & history**: page snapshots, restore (reversible), audit trail
+- ✅ **Page linking & backlinks**, workspace/page/group **color coding & icons**
+- ✅ **Import / export** of page trees as portable JSON (template foundation)
+
+**Foundations for later phases**
 - ✅ Flexible database schema (typed properties, records, views, relations)
 - ✅ Enterprise SSO/directory **auto-discovery** module (domain → recommended IdP)
 - 📄 Specs for the template package format, API, permissions, licensing
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full roadmap (Phases 2–7).
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full roadmap (Phases 3–7) and
+[docs/API.md](docs/API.md) for every endpoint.
 
 ## Repository layout
 

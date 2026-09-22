@@ -93,10 +93,14 @@ Supabase Realtime) is an implementation detail behind a `realtime` package.
 
 - **Phase 1 — Foundation** *(implemented here)*: auth, org/workspace/page/block,
   Postgres schema, server-side permissions, licensing/feature system, Docker.
-- **Phase 2 — Collaboration**: realtime editing, presence, cursors, comments,
-  mentions, notifications, page history.
-- **Phase 3 — Databases**: property types, table/board/calendar/gallery/list/
-  timeline views, relations, rollups, formulas.
+- **Phase 2 — Collaboration** *(largely implemented here)*: realtime presence +
+  live-sync (WebSocket), page history/versioning, audit trail, groups,
+  invitations (email/link), email provider abstraction, page linking/backlinks,
+  color coding. *Remaining*: inline comments/mentions/notifications UI, live
+  cursors, CRDT merge.
+- **Phase 3 — Databases** *(core implemented here)*: typed properties, records,
+  status-with-colors, progress rollups, reports; default table view. *Remaining*:
+  board/calendar/gallery/timeline rendering, formulas, cross-database rollups.
 - **Phase 4 — Templates**: `.template.zip` package format, import/export,
   marketplace, publishing, versioning.
 - **Phase 5 — Enterprise**: SSO/LDAP/SCIM, audit logs, advanced RBAC/custom

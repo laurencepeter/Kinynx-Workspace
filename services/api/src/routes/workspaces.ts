@@ -21,7 +21,9 @@ export async function registerWorkspaceRoutes(app: FastifyInstance): Promise<voi
   // Create a workspace — enforces max_workspaces.
   app.post("/api/organizations/:orgId/workspaces", { preHandler: app.authenticate }, async (request, reply) => {
     const { orgId } = z.object({ orgId: z.string().uuid() }).parse(request.params);
-    const { name, icon } = z.object({ name: z.string().min(1).max(120), icon: z.string().optional() }).parse(request.body);
+    const { name, icon, color } = z
+      .object({ name: z.string().min(1).max(120), icon: z.string().optional(), color: z.string().max(32).optional() })
+      .parse(request.body);
     assertCan(await orgRole(app.db, request.user!.id, orgId), "workspace:create");
 
     const count = Number(
@@ -33,8 +35,8 @@ export async function registerWorkspaceRoutes(app: FastifyInstance): Promise<voi
 
     const rows = await query(
       app.db,
-      "INSERT INTO workspaces (organization_id, name, icon) VALUES ($1,$2,$3) RETURNING id, name, icon, created_at",
-      [orgId, name, icon ?? null],
+      "INSERT INTO workspaces (organization_id, name, icon, color) VALUES ($1,$2,$3,$4) RETURNING id, name, icon, color, created_at",
+      [orgId, name, icon ?? null, color ?? null],
     );
     return reply.code(201).send({ workspace: rows[0] });
   });

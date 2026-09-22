@@ -1,7 +1,8 @@
 /**
  * Resolves a user's *effective* role on a resource by walking the scope chain
- * Organization → Workspace → Page against the database. This is the server-side
- * enforcement point; routes must call these before acting.
+ * Organization → Workspace → Page against the database, INCLUDING role grants
+ * inherited through group membership (departments / project teams). This is the
+ * server-side enforcement point; routes must call these before acting.
  */
 import type pg from "pg";
 import { effectiveRole } from "@kinynx/permissions";
@@ -11,10 +12,16 @@ import { query } from "./db/pool.js";
 export async function orgRole(db: pg.Pool, userId: string, orgId: string): Promise<Role | null> {
   const rows = await query<{ role: Role }>(
     db,
-    "SELECT role FROM organization_members WHERE organization_id = $1 AND user_id = $2",
+    `SELECT om.role FROM organization_members om
+      WHERE om.organization_id = $1 AND om.user_id = $2
+     UNION ALL
+     SELECT gg.role FROM group_grants gg
+       JOIN groups g ON g.id = gg.group_id
+       JOIN group_members gm ON gm.group_id = g.id AND gm.user_id = $2
+      WHERE gg.scope_type = 'organization' AND gg.scope_id = $1`,
     [orgId, userId],
   );
-  return rows[0]?.role ?? null;
+  return effectiveRole(...rows.map((r) => r.role));
 }
 
 export async function workspaceRole(
@@ -22,21 +29,25 @@ export async function workspaceRole(
   userId: string,
   workspaceId: string,
 ): Promise<Role | null> {
-  // Effective = max(org role for the workspace's org, explicit workspace role).
-  const rows = await query<{ org_role: Role | null; ws_role: Role | null }>(
+  // Gather every grant that could apply: org membership, org group grants,
+  // workspace membership, workspace group grants. Effective = the highest.
+  const rows = await query<{ role: Role }>(
     db,
-    `SELECT om.role AS org_role, wm.role AS ws_role
-       FROM workspaces w
-       LEFT JOIN organization_members om
-         ON om.organization_id = w.organization_id AND om.user_id = $2
-       LEFT JOIN workspace_members wm
-         ON wm.workspace_id = w.id AND wm.user_id = $2
-      WHERE w.id = $1`,
+    `WITH w AS (SELECT id, organization_id FROM workspaces WHERE id = $1)
+     SELECT om.role FROM w JOIN organization_members om
+            ON om.organization_id = w.organization_id AND om.user_id = $2
+     UNION ALL
+     SELECT gg.role FROM w JOIN group_grants gg ON gg.scope_type = 'organization' AND gg.scope_id = w.organization_id
+            JOIN group_members gm ON gm.group_id = gg.group_id AND gm.user_id = $2
+     UNION ALL
+     SELECT wm.role FROM workspace_members wm WHERE wm.workspace_id = $1 AND wm.user_id = $2
+     UNION ALL
+     SELECT gg.role FROM group_grants gg
+            JOIN group_members gm ON gm.group_id = gg.group_id AND gm.user_id = $2
+      WHERE gg.scope_type = 'workspace' AND gg.scope_id = $1`,
     [workspaceId, userId],
   );
-  const row = rows[0];
-  if (!row) return null;
-  return effectiveRole(row.org_role, row.ws_role);
+  return effectiveRole(...rows.map((r) => r.role));
 }
 
 export async function pageRole(db: pg.Pool, userId: string, pageId: string): Promise<Role | null> {
@@ -52,4 +63,14 @@ export async function pageRole(db: pg.Pool, userId: string, pageId: string): Pro
   if (!row) return null;
   const wsRole = await workspaceRole(db, userId, row.workspace_id);
   return effectiveRole(wsRole, row.page_role);
+}
+
+/** Resolve the organization that owns a workspace (for scoping invites, etc.). */
+export async function orgIdForWorkspace(db: pg.Pool, workspaceId: string): Promise<string | null> {
+  const rows = await query<{ organization_id: string }>(
+    db,
+    "SELECT organization_id FROM workspaces WHERE id = $1",
+    [workspaceId],
+  );
+  return rows[0]?.organization_id ?? null;
 }

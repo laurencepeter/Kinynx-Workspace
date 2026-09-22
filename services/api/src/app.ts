@@ -1,18 +1,27 @@
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
+import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { ForbiddenError } from "@kinynx/permissions";
 import type { Config } from "./config.js";
 import { getPool } from "./db/pool.js";
 import { resolveEntitlements } from "./licensing.js";
 import { verifyAccessToken } from "./auth/tokens.js";
+import { createEmailProvider } from "./email/index.js";
+import { RealtimeHub } from "./realtime/hub.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerOrgRoutes } from "./routes/organizations.js";
 import { registerWorkspaceRoutes } from "./routes/workspaces.js";
 import { registerPageRoutes } from "./routes/pages.js";
 import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerSystemRoutes } from "./routes/system.js";
+import { registerGroupRoutes } from "./routes/groups.js";
+import { registerInvitationRoutes } from "./routes/invitations.js";
+import { registerDatabaseRoutes } from "./routes/databases.js";
+import { registerHistoryRoutes } from "./routes/history.js";
+import { registerPortabilityRoutes } from "./routes/portability.js";
+import { registerRealtimeRoutes } from "./routes/realtime.js";
 import "./types.js";
 
 export async function buildApp(config: Config): Promise<FastifyInstance> {
@@ -24,10 +33,13 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: config.PUBLIC_APP_URL, credentials: true });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+  await app.register(websocket);
 
   app.decorate("db", getPool(config.DATABASE_URL));
   app.decorate("config", config);
   app.decorate("entitlements", resolveEntitlements(config));
+  app.decorate("email", createEmailProvider(config));
+  app.decorate("hub", new RealtimeHub());
 
   app.decorate(
     "authenticate",
@@ -64,6 +76,12 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(registerWorkspaceRoutes);
   await app.register(registerPageRoutes);
   await app.register(registerBlockRoutes);
+  await app.register(registerGroupRoutes);
+  await app.register(registerInvitationRoutes);
+  await app.register(registerDatabaseRoutes);
+  await app.register(registerHistoryRoutes);
+  await app.register(registerPortabilityRoutes);
+  await app.register(registerRealtimeRoutes);
 
   return app;
 }

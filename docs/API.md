@@ -73,11 +73,69 @@ checklist, code, quote, divider, embed, child_page`.
 |---|---|---|
 | GET | `/api/search?q=...` | Postgres full-text search across pages the caller can read |
 
+## Groups (departments / teams)
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| GET | `/api/organizations/:orgId/groups` | viewer | List groups + member counts |
+| POST | `/api/organizations/:orgId/groups` | admin | Create group (`name, color, icon, description`) |
+| POST | `/api/groups/:id/members` | admin | Add a user to a group |
+| DELETE | `/api/groups/:id/members/:userId` | admin | Remove a user |
+| POST | `/api/groups/:id/grants` | admin | Grant the group a role on a `workspace`/`organization` |
+
+## Invitations (email or shareable link)
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| POST | `/api/organizations/:orgId/invitations` | admin | Create invite; emails a link when `email` set, else returns a shareable link |
+| GET | `/api/invitations/:token` | public | Invite context for the accept screen |
+| POST | `/api/invitations/accept` | authed | Redeem a token → join org (+ workspace/group) |
+| POST | `/api/invitations/:id/revoke` | admin | Revoke |
+
+## Databases & project management
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| GET/POST | `/api/workspaces/:workspaceId/databases` | viewer/editor | List / create a database |
+| GET | `/api/databases/:id` | viewer | Database + properties + views |
+| POST | `/api/databases/:id/properties` | editor | Add a typed property (select options carry `color`) |
+| POST | `/api/databases/:id/views` | editor | Add a view (`table/board/calendar/gallery/list/timeline`) |
+| GET/POST | `/api/databases/:id/records` | viewer/editor | List / create records |
+| PATCH/DELETE | `/api/records/:id` | editor | Update (JSONB merge) / delete a record |
+| GET | `/api/databases/:id/report?group_by=&progress=` | viewer | Statistics: counts per status (with colors) + progress rollup |
+
+## History, versioning & audit
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| POST | `/api/pages/:id/versions` | editor | Snapshot current page (backup/checkpoint) |
+| GET | `/api/pages/:id/versions` | viewer | Version history |
+| POST | `/api/pages/:id/versions/:version/restore` | editor | Restore a version (checkpoints current first) |
+| GET | `/api/pages/:id/backlinks` | viewer | Pages that link here (linked references) |
+| GET | `/api/organizations/:orgId/audit` | admin | Audit trail (Enterprise adds retention/export/legal hold) |
+
+## Import / export (portable)
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| GET | `/api/pages/:id/export` | viewer | Export a page subtree as portable JSON |
+| POST | `/api/workspaces/:workspaceId/import` | editor | Import a portable JSON tree (regenerates IDs) |
+
+## Realtime (WebSocket)
+
+```
+WS /api/realtime?workspaceId=<uuid>&token=<access token>
+```
+
+Server → client events: `presence` (who is viewing/editing), `page.updated`,
+`page.version`, `block.created|updated|deleted`. Client → server: `{ type:
+"presence", pageId, state: "viewing"|"editing" }`. REST mutations also broadcast,
+so all clients live-sync without polling. Permission to read the workspace is
+enforced on connect.
+
 ## Planned (later phases)
 
 ```
-GET/POST         /api/databases/:id            # database system (Phase 3)
-GET/POST         /api/databases/:id/records
 GET/POST         /api/templates                # marketplace (Phase 4)
 POST             /api/pages/:id/publish        # publishing (Phase 4)
 GET/POST         /api/integrations             # integration framework (Phase 6)

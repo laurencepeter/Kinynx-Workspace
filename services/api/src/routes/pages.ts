@@ -11,7 +11,7 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
     assertCan(await workspaceRole(app.db, request.user!.id, workspaceId), "page:read");
     const rows = await query(
       app.db,
-      `SELECT id, parent_id, title, icon, position, updated_at
+      `SELECT id, parent_id, title, icon, color, position, updated_at
          FROM pages WHERE workspace_id = $1 AND archived_at IS NULL
         ORDER BY position, created_at`,
       [workspaceId],
@@ -27,6 +27,7 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         title: z.string().max(400).optional(),
         parent_id: z.string().uuid().optional(),
         icon: z.string().optional(),
+        color: z.string().max(32).optional(),
       })
       .parse(request.body);
     assertCan(await workspaceRole(app.db, request.user!.id, workspaceId), "page:create");
@@ -41,9 +42,9 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
 
     const rows = await query(
       app.db,
-      `INSERT INTO pages (workspace_id, parent_id, title, icon, created_by)
-       VALUES ($1,$2,$3,$4,$5) RETURNING id, parent_id, title, icon, position, updated_at`,
-      [workspaceId, body.parent_id ?? null, body.title ?? "Untitled", body.icon ?? null, request.user!.id],
+      `INSERT INTO pages (workspace_id, parent_id, title, icon, color, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, parent_id, title, icon, color, position, updated_at`,
+      [workspaceId, body.parent_id ?? null, body.title ?? "Untitled", body.icon ?? null, body.color ?? null, request.user!.id],
     );
     return reply.code(201).send({ page: rows[0] });
   });
@@ -67,13 +68,14 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
     const body = z.object({ title: z.string().max(400).optional(), icon: z.string().nullable().optional() }).parse(request.body);
     assertCan(await pageRole(app.db, request.user!.id, id), "page:update");
-    const rows = await query(
+    const rows = await query<{ id: string; title: string; icon: string | null; workspace_id: string }>(
       app.db,
       `UPDATE pages SET title = COALESCE($2, title), icon = COALESCE($3, icon)
-        WHERE id = $1 RETURNING id, title, icon, updated_at`,
+        WHERE id = $1 RETURNING id, title, icon, workspace_id, updated_at`,
       [id, body.title ?? null, body.icon ?? null],
     );
     if (rows.length === 0) return reply.code(404).send({ error: "not found" });
+    app.hub.publish(rows[0]!.workspace_id, { type: "page.updated", pageId: id, by: request.user!.email });
     return reply.send({ page: rows[0] });
   });
 
