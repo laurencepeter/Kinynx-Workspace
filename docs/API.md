@@ -33,6 +33,8 @@ short-lived JWTs (15 min default); rotate with the refresh token.
 | POST | `/api/auth/logout` | `{ refresh_token }` → 204 (revokes token) |
 | POST | `/api/auth/magic-link/request` | `{ email }` → emails a single-use sign-in link (always 200) |
 | POST | `/api/auth/magic-link/verify` | `{ token }` → session (creates the user if new) |
+| POST | `/api/auth/password/forgot` | `{ email }` → emails a reset link (always 200) |
+| POST | `/api/auth/password/reset` | `{ token, password }` → sets password, revokes all sessions |
 | GET | `/api/auth/me` | current user |
 | GET | `/api/auth/oidc/status` | whether OIDC/OAuth SSO is configured |
 | GET | `/api/auth/oidc/login` | begin SSO — returns the IdP authorize URL |

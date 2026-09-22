@@ -188,6 +188,46 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ user: { id: user.id, email: user.email }, ...session });
   });
 
+  // POST /api/auth/password/forgot — always 200 (no enumeration); emails a link.
+  app.post("/api/auth/password/forgot", tight(10), async (request, reply) => {
+    const { email } = z.object({ email: z.string().email() }).parse(request.body);
+    const user = (await query<{ id: string }>(app.db, "SELECT id FROM users WHERE email_norm = lower($1) AND is_active", [email]))[0];
+    let devLink: string | undefined;
+    if (user) {
+      const raw = randomBytes(32).toString("base64url");
+      await query(app.db, "INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1,$2,$3)", [user.id, hashToken(raw), new Date(Date.now() + 30 * 60 * 1000)]);
+      const link = `${config.PUBLIC_APP_URL}/auth/reset/${raw}`;
+      devLink = config.EMAIL_DRIVER === "console" ? link : undefined;
+      await app.email
+        .send({ to: email, subject: "Reset your Kinynx password", html: `<p>Reset your password (valid 30 minutes):</p><p><a href="${link}">${link}</a></p>` })
+        .catch((err) => app.log.warn(`reset email failed: ${(err as Error).message}`));
+    }
+    return reply.send(devLink ? { ok: true, dev_link: devLink } : { ok: true });
+  });
+
+  // POST /api/auth/password/reset — set a new password, revoke all sessions.
+  app.post("/api/auth/password/reset", tight(10), async (request, reply) => {
+    const body = z.object({ token: z.string().min(10), password: z.string().min(8) }).parse(request.body);
+    const row = (await query<{ id: string; user_id: string }>(app.db, "SELECT id, user_id FROM password_resets WHERE token_hash=$1 AND used_at IS NULL AND expires_at > now()", [hashToken(body.token)]))[0];
+    if (!row) return reply.code(400).send({ error: "invalid or expired reset token" });
+    const hash = await hashPassword(body.password);
+    const client = await app.db.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("UPDATE users SET password_hash=$2 WHERE id=$1", [row.user_id, hash]);
+      await client.query("UPDATE password_resets SET used_at=now() WHERE id=$1", [row.id]);
+      // Revoke every existing session on password change.
+      await client.query("UPDATE refresh_tokens SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL", [row.user_id]);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+    return reply.send({ ok: true });
+  });
+
   // GET /api/auth/me
   app.get("/api/auth/me", { preHandler: app.authenticate }, async (request) => {
     const rows = await query<UserRow>(

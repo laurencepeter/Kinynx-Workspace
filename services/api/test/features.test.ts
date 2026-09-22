@@ -131,6 +131,32 @@ test("magic-link sign-in creates a session (passwordless)", { skip }, async () =
   assert.equal(again.statusCode, 400);
 });
 
+test("password reset: forgot → reset → old password fails, sessions revoked", { skip }, async () => {
+  const email = `reset${s}@ex.com`;
+  const reg = await app!.inject({ method: "POST", url: "/api/auth/register", payload: { email, password: "oldpassword1" } });
+  const oldRefresh = reg.json().refresh_token as string;
+
+  const forgot = await app!.inject({ method: "POST", url: "/api/auth/password/forgot", payload: { email } });
+  assert.equal(forgot.statusCode, 200);
+  const token = (forgot.json().dev_link as string).split("/auth/reset/")[1];
+
+  const reset = await app!.inject({ method: "POST", url: "/api/auth/password/reset", payload: { token, password: "newpassword1" } });
+  assert.equal(reset.statusCode, 200);
+
+  const oldLogin = await app!.inject({ method: "POST", url: "/api/auth/login", payload: { email, password: "oldpassword1" } });
+  assert.equal(oldLogin.statusCode, 401);
+  const newLogin = await app!.inject({ method: "POST", url: "/api/auth/login", payload: { email, password: "newpassword1" } });
+  assert.equal(newLogin.statusCode, 200);
+
+  // Pre-reset refresh tokens are revoked.
+  const refreshed = await app!.inject({ method: "POST", url: "/api/auth/refresh", payload: { refresh_token: oldRefresh } });
+  assert.equal(refreshed.statusCode, 401);
+
+  // Reset token is single-use.
+  const reuse = await app!.inject({ method: "POST", url: "/api/auth/password/reset", payload: { token, password: "another1" } });
+  assert.equal(reuse.statusCode, 400);
+});
+
 test("OpenAPI document is served and valid-ish", { skip }, async () => {
   const res = await app!.inject({ method: "GET", url: "/api/openapi.json" });
   assert.equal(res.statusCode, 200);
