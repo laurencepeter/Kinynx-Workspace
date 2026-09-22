@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import formbody from "@fastify/formbody";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
@@ -40,6 +41,7 @@ import { registerAdminRoutes } from "./routes/admin.js";
 import { registerBillingRoutes } from "./routes/billing.js";
 import { registerTemplateRoutes } from "./routes/templates.js";
 import { registerOidcRoutes } from "./routes/oidc.js";
+import { registerSamlRoutes } from "./routes/saml.js";
 import { registerRoleRoutes } from "./routes/roles.js";
 import { registerComplianceRoutes } from "./routes/compliance.js";
 import { registerSecurityRoutes } from "./routes/security.js";
@@ -56,6 +58,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(cors, { origin: config.PUBLIC_APP_URL, credentials: true });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
   await app.register(websocket);
+  await app.register(formbody); // SAML ACS posts form-encoded SAMLResponse
 
   app.decorate("db", getPool(config.DATABASE_URL));
   app.decorate("config", config);
@@ -138,6 +141,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(registerBillingRoutes);
   await app.register(registerTemplateRoutes);
   await app.register(registerOidcRoutes);
+  await app.register(registerSamlRoutes);
   await app.register(registerRoleRoutes);
   await app.register(registerComplianceRoutes);
   await app.register(registerSecurityRoutes);

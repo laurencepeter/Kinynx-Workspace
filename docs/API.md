@@ -43,6 +43,10 @@ short-lived JWTs (15 min default); rotate with the refresh token.
 When MFA is enabled, `/api/auth/login` requires a `code`; without it the reply is
 `401 { mfa_required: true }`.
 
+| GET | `/api/auth/saml/status` · `/metadata` | SAML config status · SP metadata XML |
+| GET | `/api/auth/saml/login` | SP-initiated SSO → IdP redirect URL |
+| POST | `/api/auth/saml/callback` | ACS: validates the signed assertion (node-saml) → session |
+
 A **session** is `{ access_token, refresh_token, token_type: "Bearer", expires_in }`.
 
 ## Organizations

@@ -7,7 +7,7 @@ Updated as the build progresses.
 |---|---|---|---|
 | 1 | Three-tier business model | ✅ | `packages/shared` entitlements (community/team/enterprise) |
 | 2 | Configurable Team limits | ✅ | Limits are data, not hard-coded; license can override |
-| 3 | Enterprise features | 🟡 | LDAP/Authentik sync ✅, OIDC ✅, custom roles ✅, audit ✅, retention + legal hold ✅, TOTP MFA ✅, IP allowlist ✅, org-wide MFA policy ✅; SAML ⛔ |
+| 3 | Enterprise features | ✅ | LDAP/Authentik sync, OIDC + SAML SSO, custom roles, audit, retention + legal hold, TOTP MFA, IP allowlist, org-wide MFA policy |
 | 4 | Core/Enterprise license split | ✅ | Apache-2.0 core; `/enterprise` commercial; no core→enterprise imports |
 | 5 | Block-based editor (data model) | ✅ | First-class `blocks`; rich editor UI is minimal (reference client) |
 | 6 | Database system | ✅ | Properties, records, views, report, **formulas + rollups** ✅; board/calendar/timeline are client rendering of stored views |
@@ -18,7 +18,7 @@ Updated as the build progresses.
 | 11 | Publishing (public pages) | ✅ | Public read-only pages by slug, SEO metadata, optional password |
 | 12 | Search | ✅ | Postgres FTS; Meilisearch/OpenSearch pluggable later |
 | 13 | File storage (metadata in PG, bytes in object store) | ✅ | StorageDriver (local + S3/MinIO/R2); files API; bytes never in PG |
-| 14 | Authentication | ✅ | email/password ✅; magic link ✅; OIDC/OAuth login ✅; LDAP/Authentik sync ✅; SAML ⛔ |
+| 14 | Authentication | ✅ | email/password, magic link, OIDC/OAuth, SAML 2.0, LDAP/Authentik sync |
 | 15 | API + OpenAPI | ✅ | REST for all core resources; `/api/openapi.json` served |
 | 16 | Integrations framework | ✅ | Provider registry (webhook/slack/discord/teams/github/gitlab); actions call integrations; secrets never returned |
 | 17 | Automation engine | ✅ | WHEN trigger [+ filter] THEN actions; webhook (HMAC-signed)/notification/email/integration; run log |
@@ -36,11 +36,14 @@ Updated as the build progresses.
 | 29 | Product philosophy | ✅ | Open, portable, API-first |
 | 30 | First-deliverable checklist | ✅ | Arch, schema, API, permissions, template spec, licensing, Docker, auth, editor slice |
 
-## Remaining
-- SAML login (OIDC/OAuth login ✅; LDAP/Authentik sync ✅) — the last auth mechanism
+## Status: all 30 spec areas ✅
+
+Every numbered requirement in the brief is implemented and tested. Polish items
+that remain open (not spec gaps) for future iterations:
 - Fine-grained per-action grants on custom roles (base-role custom roles ✅)
-- Database calendar/timeline **client rendering** (table + Kanban board done; views + data + formulas/rollups server-side)
+- Database calendar/timeline **client rendering** (table + Kanban board ✅; views + data + formulas/rollups server-side ✅)
 - Live cursors / CRDT merge (presence + live-sync ✅)
+- Richer block editor UI (block data model + API ✅)
 
 ## Next up (priority order)
 1. Realtime **Redis fan-out** ✅ · **LDAP/Authentik sync** ✅

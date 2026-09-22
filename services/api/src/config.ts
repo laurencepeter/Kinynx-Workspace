@@ -37,6 +37,12 @@ const schema = z.object({
   OIDC_REDIRECT_URI: z.string().optional(),
   OIDC_SCOPES: z.string().default("openid email profile"),
 
+  // ── SAML 2.0 SSO (SP-initiated) ──────────────────────────────────────────
+  SAML_ENTRY_POINT: z.string().optional(), // IdP SSO URL
+  SAML_ISSUER: z.string().optional(), // SP entity id
+  SAML_IDP_CERT: z.string().optional(), // IdP signing certificate (PEM/base64)
+  SAML_CALLBACK_URL: z.string().optional(), // ACS URL
+
   // ── Email ──────────────────────────────────────────────────────────────
   EMAIL_DRIVER: z.enum(["console", "smtp", "mailjet"]).default("console"),
   EMAIL_FROM: z.string().default("Kinynx <no-reply@kinynx.local>"),
