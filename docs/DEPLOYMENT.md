@@ -39,15 +39,18 @@ bytes never touch Postgres.
 
 ## Coolify
 
-Import the repo, use `docker-compose.yml` as the stack, set the `.env` values in
-Coolify's environment UI, and deploy. No changes required.
+Import the repo, use `docker-compose.yml` as the stack, set the values in
+Coolify's environment UI, and deploy. Step-by-step:
+[`infrastructure/coolify/README.md`](../infrastructure/coolify/README.md).
 
 ## Kubernetes
 
-Translate the compose services to Deployments/StatefulSets (Postgres + MinIO as
-StatefulSets with PVCs; API/web as Deployments; an Ingress in place of Caddy).
-Manifests live under `infrastructure/kubernetes/` (Phase 5+). The API is
-stateless and horizontally scalable; sessions are JWT-based.
+Ready-to-apply manifests are in
+[`infrastructure/kubernetes/kinynx.yaml`](../infrastructure/kubernetes/kinynx.yaml)
+(Postgres StatefulSet, Redis, MinIO, API×2, worker, web×2, Ingress). Build/push
+the `api` and `web` images (see the k8s README), set the Secret/ConfigMap, then
+`kubectl apply -f kinynx.yaml`. The API is stateless and horizontally scalable
+(JWT sessions; realtime fan-out over Redis); run one worker replica.
 
 ## Air-gapped / private networks
 
