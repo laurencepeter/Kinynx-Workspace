@@ -7,7 +7,7 @@ Updated as the build progresses.
 |---|---|---|---|
 | 1 | Three-tier business model | ✅ | `packages/shared` entitlements (community/team/enterprise) |
 | 2 | Configurable Team limits | ✅ | Limits are data, not hard-coded; license can override |
-| 3 | Enterprise features | 🟡 | LDAP/Authentik sync ✅, OIDC login ✅, custom roles ✅, audit ✅, retention + legal hold ✅, TOTP MFA ✅; SAML, IP allowlist, org-wide MFA policy ⛔ |
+| 3 | Enterprise features | 🟡 | LDAP/Authentik sync ✅, OIDC ✅, custom roles ✅, audit ✅, retention + legal hold ✅, TOTP MFA ✅, IP allowlist ✅, org-wide MFA policy ✅; SAML ⛔ |
 | 4 | Core/Enterprise license split | ✅ | Apache-2.0 core; `/enterprise` commercial; no core→enterprise imports |
 | 5 | Block-based editor (data model) | ✅ | First-class `blocks`; rich editor UI is minimal (reference client) |
 | 6 | Database system | ✅ | Properties, records, views, report, **formulas + rollups** ✅; board/calendar/timeline are client rendering of stored views |
@@ -36,12 +36,11 @@ Updated as the build progresses.
 | 29 | Product philosophy | ✅ | Open, portable, API-first |
 | 30 | First-deliverable checklist | ✅ | Arch, schema, API, permissions, template spec, licensing, Docker, auth, editor slice |
 
-## Remaining (lower priority)
-- SAML login (OIDC/OAuth login ✅; LDAP/Authentik sync ✅)
+## Remaining
+- SAML login (OIDC/OAuth login ✅; LDAP/Authentik sync ✅) — the last auth mechanism
 - Fine-grained per-action grants on custom roles (base-role custom roles ✅)
-- Admin **web UI** (backend done)
-- Database board/calendar/timeline **client rendering** (views + data + formulas/rollups done server-side)
-- Live cursors / CRDT merge; IP allowlist / MFA policies; SAML
+- Database calendar/timeline **client rendering** (table + Kanban board done; views + data + formulas/rollups server-side)
+- Live cursors / CRDT merge (presence + live-sync ✅)
 
 ## Next up (priority order)
 1. Realtime **Redis fan-out** ✅ · **LDAP/Authentik sync** ✅

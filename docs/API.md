@@ -224,6 +224,17 @@ Browsing and downloading are **public** (no paid account); publishing needs auth
 | POST | `/api/workspaces/:workspaceId/templates/import-zip` | editor | Import an uploaded `.template.zip` (octet-stream) |
 | POST | `/api/templates/:id/rate` | authed | Rate 1–5 |
 
+## Security policies (Enterprise: IP allowlist + MFA requirement)
+
+| Method | Path | Description |
+|---|---|---|
+| GET/PUT | `/api/organizations/:orgId/security` | Get/set `{ ip_allowlist: [CIDR…], require_mfa }` |
+
+Enforced at authentication for every authenticated request: a user in a
+policy-bearing org must come from an allowed IP and (if `require_mfa`) have TOTP
+enrolled — MFA-enrollment endpoints stay reachable so nobody is locked out.
+Gated on `advanced_security`.
+
 ## Compliance (Enterprise: retention + legal hold)
 
 | Method | Path | Description |

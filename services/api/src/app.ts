@@ -42,6 +42,8 @@ import { registerTemplateRoutes } from "./routes/templates.js";
 import { registerOidcRoutes } from "./routes/oidc.js";
 import { registerRoleRoutes } from "./routes/roles.js";
 import { registerComplianceRoutes } from "./routes/compliance.js";
+import { registerSecurityRoutes } from "./routes/security.js";
+import { enforceOrgSecurity } from "./security/policy.js";
 import "./types.js";
 
 export async function buildApp(config: Config): Promise<FastifyInstance> {
@@ -90,6 +92,13 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
         request.user = { id: claims.sub, email: claims.email };
       } catch {
         await reply.code(401).send({ error: "invalid or expired token" });
+        return;
+      }
+      // Enterprise org security policies (IP allowlist / required MFA).
+      const violation = await enforceOrgSecurity(app.db, request.user.id, request.url, request.ip);
+      if (violation) {
+        request.user = undefined;
+        await reply.code(violation.code).send(violation.body);
       }
     },
   );
@@ -131,6 +140,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(registerOidcRoutes);
   await app.register(registerRoleRoutes);
   await app.register(registerComplianceRoutes);
+  await app.register(registerSecurityRoutes);
   await app.register(registerRealtimeRoutes);
 
   return app;
