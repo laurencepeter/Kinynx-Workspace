@@ -93,6 +93,17 @@ test("full-text search finds the created page", { skip }, async () => {
   assert.ok(res.json().results.some((r: { title: string }) => r.title === "Architecture"));
 });
 
+test("search matches block body text, not just page titles", { skip }, async () => {
+  // The page created above has a heading block with text "Overview".
+  const res = await app!.inject({
+    method: "GET",
+    url: "/api/search?q=Overview",
+    headers: { authorization: `Bearer ${state.token}` },
+  });
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.json().pages.some((r: { id: string }) => r.id === state.pageId));
+});
+
 test("outsider cannot read another user's workspace (server-side enforcement)", { skip }, async () => {
   const reg = await app!.inject({
     method: "POST",

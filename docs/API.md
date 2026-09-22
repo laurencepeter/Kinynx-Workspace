@@ -87,7 +87,7 @@ checklist, code, quote, divider, embed, child_page`.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/search?q=...` | Postgres full-text search across pages the caller can read |
+| GET | `/api/search?q=...` | Global full-text search: pages (title + body), comments, users, public templates |
 
 ## Groups (departments / teams)
 
