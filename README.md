@@ -26,6 +26,11 @@ the API, the web client, and a Caddy reverse proxy all come up together. The
 API applies database migrations automatically on boot. Works fully offline /
 air-gapped once images are pulled.
 
+Reference web clients (served statically):
+- **`/`** — docs & block editor (with presence, live-sync, invites)
+- **`/board.html`** — Kanban board with colour-coded status + live report
+- **`/admin.html`** — admin console (health, usage, edition, license upload)
+
 ## Local development
 
 ```bash

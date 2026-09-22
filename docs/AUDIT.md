@@ -28,7 +28,7 @@ Updated as the build progresses.
 | 21 | Multi-tenancy | ✅ | User→Org→Workspace; a user in many orgs |
 | 22 | Billing abstraction | ✅ | `BillingProvider` (manual + Stripe Checkout via REST); plans catalog; checkout |
 | 23 | Enterprise license upload | ✅ | Offline verification + `POST /api/admin/license` activates edition at runtime |
-| 24 | Admin console | 🟡 | Backend done: stats, system health, license, edition; web admin UI ⛔ |
+| 24 | Admin console | ✅ | Backend + web UI (apps/web/admin.html): health, usage, edition, runtime license upload |
 | 25 | Developer docs | ✅ | README + ARCHITECTURE + 8 docs |
 | 26 | Technology | ✅ | Documented adaptation (TS API over raw PG) |
 | 27 | Monorepo structure | ✅ | apps/packages/services/enterprise/infrastructure/docs |
