@@ -13,9 +13,9 @@ compliance on top of the open core. They are activated by a valid license (see
 | Module | Status | Purpose |
 |---|---|---|
 | `directory-discovery/` | ✅ implemented | SSO/directory **auto-discovery**: map a sign-in email domain to a recommended identity provider and settings for IT to confirm; supports desktop auto sign-in on domain-joined devices. |
+| `directory-sync/` | ✅ implemented | **LDAP / Active Directory / Authentik** user & group **sync** (provisioning + deprovisioning). Normalizes any directory into a snapshot, then reconciles Kinynx groups & memberships idempotently. |
 | `sso/` | planned | SAML / OIDC connectors, session issuance |
-| `ldap/` | planned | LDAP / Active Directory bind + sync |
-| `scim/` | planned | Automatic user provisioning/deprovisioning |
+| `scim/` | planned | SCIM push endpoint (this module already models the pull/reconcile side) |
 | `audit/` | planned | Audit log reads, retention, export, legal hold |
 | `rbac/` | planned | Custom roles, fine-grained ACLs |
 | `admin/` | planned | Organization administration console |
@@ -42,3 +42,34 @@ Recommendations are **proposals**: they never silently trust a domain or
 auto-provision. An IT admin confirms or overrides. When nothing is detected, the
 user falls back to email/password and IT can configure SSO manually. The module
 is pure/deterministic (probe results are injected), so it is fully unit-tested.
+
+## Directory sync (LDAP / Active Directory / Authentik)
+
+Once an admin confirms a directory (or IT configures one directly),
+`directory-sync` keeps Kinynx users, groups, and memberships in step with it:
+
+```
+DirectoryProvider.fetchSnapshot()   →   DirectorySnapshot   →   applyDirectorySync(pool, orgId, snapshot)
+  (LdapDirectory / AuthentikDirectory)   (normalized users,       (idempotent upsert of users, groups
+                                          groups, memberships)      by source+external_id, and member
+                                                                    reconciliation → provision/deprovision)
+```
+
+- **Providers**: `LdapDirectory` (OpenLDAP / Active Directory / FreeIPA via
+  `ldapts`, configurable attributes) and `AuthentikDirectory` (Authentik REST
+  API; the same shape fits any OIDC/SCIM-style directory).
+- **Reconciliation is pure and unit-tested**; the applier is transactional and
+  **idempotent** — run it on a schedule or from a SCIM webhook and the DB
+  converges. Members removed upstream are removed here (deprovisioning), and
+  every run writes a `directory.sync` audit event.
+- Groups synced this way carry `source` + `external_id`, so admins can grant a
+  synced group a role on a workspace (see core `POST /api/groups/:id/grants`)
+  and the whole team gets access — "invite by group", driven by the directory.
+
+Wire it into an enterprise deployment from a worker:
+
+```ts
+import { AuthentikDirectory, runDirectorySync } from "@kinynx/ee-directory-sync";
+const provider = new AuthentikDirectory({ baseUrl, token });
+await runDirectorySync(pool, organizationId, provider, { defaultOrgRole: "viewer" });
+```
