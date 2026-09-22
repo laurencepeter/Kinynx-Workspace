@@ -64,6 +64,25 @@ test("formula property computes at read time", { skip }, async () => {
   assert.equal(res.json().records[0].computed[total.id], 30);
 });
 
+test("a select property's options can be updated (append a status)", { skip }, async () => {
+  const reg = await app!.inject({ method: "POST", url: "/api/auth/register", payload: { email: `prop${s}@ex.com`, password: "supersecret1" } });
+  const token = reg.json().access_token as string;
+  const org = (await app!.inject({ method: "POST", url: "/api/organizations", headers: auth(token), payload: { name: "P" } })).json().organization;
+  const ws = (await app!.inject({ method: "POST", url: `/api/organizations/${org.id}/workspaces`, headers: auth(token), payload: { name: "W" } })).json().workspace;
+  const db = (await app!.inject({ method: "POST", url: `/api/workspaces/${ws.id}/databases`, headers: auth(token), payload: { name: "Board" } })).json().database;
+  const status = (await app!.inject({ method: "POST", url: `/api/databases/${db.id}/properties`, headers: auth(token), payload: { name: "Status", type: "select", config: { options: [{ name: "Todo", color: "#f87171" }] } } })).json().property;
+
+  const patched = await app!.inject({
+    method: "PATCH", url: `/api/databases/properties/${status.id}`, headers: auth(token),
+    payload: { config: { options: [{ name: "Todo", color: "#f87171" }, { name: "Done", color: "#34d399" }] } },
+  });
+  assert.equal(patched.statusCode, 200);
+  const fetched = await app!.inject({ method: "GET", url: `/api/databases/${db.id}`, headers: auth(token) });
+  const opts = fetched.json().properties.find((p: { id: string }) => p.id === status.id).config.options;
+  assert.equal(opts.length, 2);
+  assert.equal(opts[1].name, "Done");
+});
+
 test("rollup property aggregates related records", { skip }, async () => {
   const reg = await app!.inject({ method: "POST", url: "/api/auth/register", payload: { email: `roll${s}@ex.com`, password: "supersecret1" } });
   const token = reg.json().access_token as string;

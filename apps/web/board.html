@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kinynx Board</title>
+    <style>
+      :root {
+        --bg:#0e0f13; --panel:#171922; --panel-2:#1e2130; --border:#2a2e3f;
+        --text:#e7e9f0; --muted:#9aa0b4; --accent:#6d5efc; --accent-2:#22d3ee; --radius:12px;
+      }
+      *{box-sizing:border-box} body{margin:0;font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+        background:radial-gradient(1200px 600px at 80% -10%,#1b1e34,var(--bg));color:var(--text);min-height:100vh}
+      header{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--border);
+        position:sticky;top:0;background:rgba(14,15,19,.85);backdrop-filter:blur(8px);z-index:5}
+      .logo{font-weight:800;letter-spacing:.5px;background:linear-gradient(90deg,var(--accent),var(--accent-2));
+        -webkit-background-clip:text;background-clip:text;color:transparent}
+      .spacer{flex:1}
+      main{max-width:1200px;margin:0 auto;padding:22px}
+      select,input,button{font:inherit;border-radius:9px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:9px 12px}
+      button{cursor:pointer;background:linear-gradient(90deg,var(--accent),#8b7dff);border:none;font-weight:600}
+      button.ghost{background:var(--panel-2);border:1px solid var(--border);font-weight:500}
+      .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+      .report{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 18px}
+      .stat{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;min-width:120px}
+      .stat .n{font-size:22px;font-weight:700} .stat .l{font-size:12px;color:var(--muted)}
+      .progress{height:8px;border-radius:99px;background:var(--panel-2);overflow:hidden;margin-top:8px}
+      .progress > div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+      .board{display:flex;gap:14px;overflow-x:auto;padding-bottom:12px}
+      .col{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);min-width:260px;width:260px;padding:12px;flex:0 0 auto}
+      .col h3{margin:0 0 10px;font-size:13px;display:flex;align-items:center;gap:8px}
+      .dot{width:10px;height:10px;border-radius:99px;display:inline-block}
+      .count{color:var(--muted);font-size:12px;margin-left:auto}
+      .card{background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:10px;margin-bottom:8px}
+      .card .title{font-weight:600;font-size:14px}
+      .card select{width:100%;margin-top:8px;font-size:12px;padding:6px 8px}
+      .muted{color:var(--muted)} .hidden{display:none}
+      #auth{max-width:380px;margin:12vh auto;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+      #auth .stack>*+*{margin-top:10px} #auth input{width:100%}
+      a{color:var(--accent-2)}
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="logo">◆ Kinynx</span><span class="muted">Board</span>
+      <span class="spacer"></span>
+      <a href="./index.html" class="muted" style="text-decoration:none">← Docs</a>
+    </header>
+    <main>
+      <section id="auth" class="stack">
+        <h3>Sign in</h3>
+        <input id="email" placeholder="you@company.com" />
+        <input id="password" type="password" placeholder="Password" />
+        <button id="loginBtn">Sign in</button>
+        <p class="muted" style="font-size:12px">Uses the same account as the docs app.</p>
+      </section>
+
+      <section id="app" class="hidden">
+        <div class="bar">
+          <select id="workspace"></select>
+          <select id="database"></select>
+          <button class="ghost" id="newDb">+ Database</button>
+          <span class="spacer"></span>
+          <input id="statusName" placeholder="New status (e.g. Done)" style="width:150px" />
+          <input id="statusColor" type="color" value="#34d399" style="padding:2px;width:44px" />
+          <button class="ghost" id="addStatus">+ Status</button>
+          <input id="cardTitle" placeholder="New card title" style="width:160px" />
+          <button id="addCard">+ Card</button>
+        </div>
+        <div class="report" id="report"></div>
+        <div class="board" id="board"></div>
+      </section>
+    </main>
+    <script src="./board.js"></script>
+  </body>
+</html>

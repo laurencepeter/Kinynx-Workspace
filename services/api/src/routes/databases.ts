@@ -133,6 +133,29 @@ export async function registerDatabaseRoutes(app: FastifyInstance): Promise<void
     return reply.code(201).send({ property: row });
   });
 
+  // Update a property (e.g. append a select option / rename).
+  app.patch("/api/databases/properties/:propId", { preHandler: app.authenticate }, async (request, reply) => {
+    const { propId } = z.object({ propId: z.string().uuid() }).parse(request.params);
+    const body = z.object({ name: z.string().min(1).max(120).optional(), config: z.record(z.unknown()).optional() }).parse(request.body);
+    const ctx = (
+      await query<{ workspace_id: string }>(
+        app.db,
+        "SELECT d.workspace_id FROM database_properties p JOIN databases d ON d.id = p.database_id WHERE p.id=$1",
+        [propId],
+      )
+    )[0];
+    if (!ctx) return reply.code(404).send({ error: "not found" });
+    assertCan(await wsRole(request.user!.id, ctx.workspace_id), "record:update");
+    const row = (
+      await query(
+        app.db,
+        "UPDATE database_properties SET name = COALESCE($2, name), config = COALESCE($3, config) WHERE id=$1 RETURNING id, name, type, config",
+        [propId, body.name ?? null, body.config ? JSON.stringify(body.config) : null],
+      )
+    )[0];
+    return reply.send({ property: row });
+  });
+
   app.post("/api/databases/:id/views", { preHandler: app.authenticate }, async (request, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
     const body = z.object({ name: z.string().min(1).max(120), type: z.enum(VIEW_TYPES), config: z.record(z.unknown()).default({}) }).parse(request.body);
