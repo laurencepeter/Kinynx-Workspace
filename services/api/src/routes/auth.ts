@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { query } from "../db/pool.js";
+import { randomBytes } from "node:crypto";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { hashToken, newRefreshToken, signAccessToken } from "../auth/tokens.js";
 
@@ -107,6 +108,43 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       hashToken(refresh_token),
     ]);
     return reply.code(204).send();
+  });
+
+  // POST /api/auth/magic-link/request — passwordless sign-in.
+  // Always returns 200 (no user enumeration). Emails a single-use link.
+  app.post("/api/auth/magic-link/request", async (request, reply) => {
+    const { email } = z.object({ email: z.string().email() }).parse(request.body);
+    const raw = randomBytes(32).toString("base64url");
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    await query(app.db, "INSERT INTO magic_links (email, token_hash, expires_at) VALUES ($1,$2,$3)", [email, hashToken(raw), expires]);
+    const link = `${config.PUBLIC_APP_URL}/auth/magic/${raw}`;
+    await app.email
+      .send({ to: email, subject: "Your Kinynx sign-in link", html: `<p>Click to sign in (valid 15 minutes):</p><p><a href="${link}">${link}</a></p>` })
+      .catch((err) => app.log.warn(`magic-link email failed: ${(err as Error).message}`));
+    // Dev convenience: expose the link only when using the console email driver
+    // (no real inbox). Never returned once a real email provider is configured.
+    return reply.send(config.EMAIL_DRIVER === "console" ? { ok: true, dev_link: link } : { ok: true });
+  });
+
+  // POST /api/auth/magic-link/verify — redeem the token, create the user if new.
+  app.post("/api/auth/magic-link/verify", async (request, reply) => {
+    const { token } = z.object({ token: z.string().min(10) }).parse(request.body);
+    const row = (
+      await query<{ id: string; email: string }>(
+        app.db,
+        "SELECT id, email FROM magic_links WHERE token_hash=$1 AND used_at IS NULL AND expires_at > now()",
+        [hashToken(token)],
+      )
+    )[0];
+    if (!row) return reply.code(400).send({ error: "invalid or expired link" });
+    await query(app.db, "UPDATE magic_links SET used_at = now() WHERE id=$1", [row.id]);
+
+    let user = (await query<UserRow>(app.db, "SELECT id, email, display_name, password_hash FROM users WHERE email_norm = lower($1)", [row.email]))[0];
+    if (!user) {
+      user = (await query<UserRow>(app.db, "INSERT INTO users (email, display_name) VALUES ($1,$2) RETURNING id, email, display_name, password_hash", [row.email, row.email.split("@")[0]]))[0]!;
+    }
+    const session = await issueSession(user, request.headers["user-agent"], request.ip);
+    return reply.send({ user: { id: user.id, email: user.email }, ...session });
   });
 
   // GET /api/auth/me

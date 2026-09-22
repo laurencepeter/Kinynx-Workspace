@@ -31,6 +31,8 @@ short-lived JWTs (15 min default); rotate with the refresh token.
 | POST | `/api/auth/login` | `{ email, password }` → session |
 | POST | `/api/auth/refresh` | `{ refresh_token }` → new session (rotates token) |
 | POST | `/api/auth/logout` | `{ refresh_token }` → 204 (revokes token) |
+| POST | `/api/auth/magic-link/request` | `{ email }` → emails a single-use sign-in link (always 200) |
+| POST | `/api/auth/magic-link/verify` | `{ token }` → session (creates the user if new) |
 | GET | `/api/auth/me` | current user |
 
 A **session** is `{ access_token, refresh_token, token_type: "Bearer", expires_in }`.

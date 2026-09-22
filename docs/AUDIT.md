@@ -18,7 +18,7 @@ Updated as the build progresses.
 | 11 | Publishing (public pages) | ✅ | Public read-only pages by slug, SEO metadata, optional password |
 | 12 | Search | ✅ | Postgres FTS; Meilisearch/OpenSearch pluggable later |
 | 13 | File storage (metadata in PG, bytes in object store) | ✅ | StorageDriver (local + S3/MinIO/R2); files API; bytes never in PG |
-| 14 | Authentication | 🟡 | email/password ✅; LDAP/Authentik sync ✅; magic link, OAuth, SAML/OIDC login ⛔ |
+| 14 | Authentication | 🟡 | email/password ✅; magic link ✅; LDAP/Authentik sync ✅; OAuth, SAML/OIDC login ⛔ |
 | 15 | API + OpenAPI | ✅ | REST for all core resources; `/api/openapi.json` served |
 | 16 | Integrations framework | ✅ | Provider registry (webhook/slack/discord/teams/github/gitlab); actions call integrations; secrets never returned |
 | 17 | Automation engine | ✅ | WHEN trigger [+ filter] THEN actions; webhook (HMAC-signed)/notification/email/integration; run log |

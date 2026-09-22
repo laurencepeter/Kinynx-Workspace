@@ -112,6 +112,25 @@ test("file upload round-trip (local storage driver)", { skip }, async () => {
   assert.equal(down.body, bytes.toString("utf8"));
 });
 
+test("magic-link sign-in creates a session (passwordless)", { skip }, async () => {
+  const email = `magic${s}@ex.com`;
+  const req = await app!.inject({ method: "POST", url: "/api/auth/magic-link/request", payload: { email } });
+  assert.equal(req.statusCode, 200);
+  const link = req.json().dev_link as string; // console driver exposes it
+  assert.ok(link);
+  const token = link.split("/auth/magic/")[1];
+
+  const verify = await app!.inject({ method: "POST", url: "/api/auth/magic-link/verify", payload: { token } });
+  assert.equal(verify.statusCode, 200);
+  const access = verify.json().access_token as string;
+  const me = await app!.inject({ method: "GET", url: "/api/auth/me", headers: { authorization: `Bearer ${access}` } });
+  assert.equal(me.json().email, email);
+
+  // Single-use: verifying again fails.
+  const again = await app!.inject({ method: "POST", url: "/api/auth/magic-link/verify", payload: { token } });
+  assert.equal(again.statusCode, 400);
+});
+
 test("OpenAPI document is served and valid-ish", { skip }, async () => {
   const res = await app!.inject({ method: "GET", url: "/api/openapi.json" });
   assert.equal(res.statusCode, 200);
