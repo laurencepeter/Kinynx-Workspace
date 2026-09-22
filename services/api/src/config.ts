@@ -23,6 +23,9 @@ const schema = z.object({
   REFRESH_TOKEN_TTL: z.coerce.number().default(2_592_000),
   KINYNX_LICENSE_FILE: z.string().optional(),
   KINYNX_LICENSE_PUBLIC_KEY: z.string().optional(),
+  // Comma-separated emails allowed to use the deployment admin console/license.
+  // If unset, any organization owner is treated as a deployment admin (self-host).
+  ADMIN_EMAILS: z.string().optional(),
 
   // ── Email ──────────────────────────────────────────────────────────────
   EMAIL_DRIVER: z.enum(["console", "smtp", "mailjet"]).default("console"),
@@ -51,6 +54,13 @@ const schema = z.object({
   AI_MODEL: z.string().optional(),
   // Enterprise policy: when false, external providers are refused (local only).
   AI_ALLOW_EXTERNAL: envBool(true),
+
+  // ── Billing (never hard-code a provider into business logic) ─────────────
+  BILLING_PROVIDER: z.enum(["manual", "stripe"]).default("manual"),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_PRICE_TEAM: z.string().optional(),
+  STRIPE_PRICE_ENTERPRISE: z.string().optional(),
+  BILLING_SUCCESS_URL: z.string().optional(),
 });
 
 export type Config = z.infer<typeof schema>;

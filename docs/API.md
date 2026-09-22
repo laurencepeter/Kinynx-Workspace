@@ -182,6 +182,28 @@ Self-hosters can run local models; Enterprise can set `AI_ALLOW_EXTERNAL=false`.
 | POST | `/api/ai/rewrite` | authed | Rewrite `text` per `instruction` |
 | POST | `/api/ai/complete` | authed | Generic completion (`system?`, `prompt`) |
 
+## Billing
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| GET | `/api/billing/plans` | public | Plan catalog (limits + features) from central entitlements |
+| GET | `/api/organizations/:orgId/billing` | viewer | Current plan |
+| POST | `/api/organizations/:orgId/billing/checkout` | owner | Start checkout (Stripe redirect or manual instructions) |
+
+Provider is pluggable (`BILLING_PROVIDER=manual|stripe`); business logic never
+calls Stripe directly.
+
+## Admin console (deployment admin)
+
+Admin = `ADMIN_EMAILS` allowlist, or any org owner when unset (self-host).
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/admin/stats` | Users/orgs/workspaces/pages/files/storage counts + edition |
+| GET | `/api/admin/health` | DB/storage/realtime/search health, storage driver, AI |
+| GET | `/api/admin/license` | Current edition, features, limits |
+| POST | `/api/admin/license` | Upload a signed license → activates the edition at runtime |
+
 ## OpenAPI
 
 `GET /api/openapi.json` (OpenAPI 3.1) · `GET /api/docs` (Redoc viewer).

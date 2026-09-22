@@ -26,9 +26,9 @@ Updated as the build progresses.
 | 19 | Self-hosting (Docker) | ✅ | `docker compose up -d`; air-gap friendly |
 | 20 | One codebase → 3 deployments | ✅ | Same core; edition via entitlements |
 | 21 | Multi-tenancy | ✅ | User→Org→Workspace; a user in many orgs |
-| 22 | Billing abstraction | 🟡 | Documented; `BillingProvider` code ⛔ |
-| 23 | Enterprise license upload | 🟡 | Offline verification ✅; upload endpoint ⛔ |
-| 24 | Admin console | 🟡 | `/health` + `/api/system/info`; full admin UI ⛔ |
+| 22 | Billing abstraction | ✅ | `BillingProvider` (manual + Stripe Checkout via REST); plans catalog; checkout |
+| 23 | Enterprise license upload | ✅ | Offline verification + `POST /api/admin/license` activates edition at runtime |
+| 24 | Admin console | 🟡 | Backend done: stats, system health, license, edition; web admin UI ⛔ |
 | 25 | Developer docs | ✅ | README + ARCHITECTURE + 8 docs |
 | 26 | Technology | ✅ | Documented adaptation (TS API over raw PG) |
 | 27 | Monorepo structure | ✅ | apps/packages/services/enterprise/infrastructure/docs |
@@ -42,8 +42,8 @@ Updated as the build progresses.
 3. **File storage** (local + S3/MinIO) ✅
 4. **Publishing** public pages ✅
 5. **OpenAPI** document ✅
-6. **Integrations framework + webhooks** ✅ · **Automation engine** ✅ · **AI abstraction** ✅
+6. Integrations/webhooks ✅ · Automation ✅ · AI ✅ · **Billing** ✅ · **License upload + admin backend** ✅
 7. Template `.template.zip` packaging + marketplace (Phase 4)
-8. Enterprise: SAML/OIDC login, custom roles, license upload endpoint, admin console
-9. Billing provider abstraction (Stripe/manual)
-10. Magic-link / OAuth login; database board/calendar/timeline rendering; formulas/rollups
+8. Enterprise: SAML/OIDC login, custom roles, admin **web UI**
+9. Magic-link / OAuth login
+10. Database board/calendar/timeline rendering; formulas/rollups

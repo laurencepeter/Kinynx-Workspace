@@ -6,6 +6,7 @@ import type { RealtimeHub } from "./realtime/hub.js";
 import type { StorageDriver } from "./storage/index.js";
 import type { EventBus } from "./automation/events.js";
 import type { AIProvider } from "./ai/index.js";
+import type { BillingProvider } from "./billing/index.js";
 
 export interface AuthUser {
   id: string;
@@ -22,6 +23,7 @@ declare module "fastify" {
     storage: StorageDriver;
     events: EventBus;
     ai: AIProvider | null;
+    billing: BillingProvider;
     /** Verifies the bearer token and sets request.user, or replies 401. */
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
