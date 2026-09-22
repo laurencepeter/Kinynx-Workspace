@@ -22,6 +22,16 @@ const schema = z.object({
   SMTP_PASS: z.string().optional(),
   MAILJET_API_KEY: z.string().optional(),
   MAILJET_SECRET_KEY: z.string().optional(),
+
+  // ── Object storage ───────────────────────────────────────────────────────
+  STORAGE_DRIVER: z.enum(["local", "s3", "minio"]).default("local"),
+  STORAGE_LOCAL_DIR: z.string().default("./data/uploads"),
+  S3_ENDPOINT: z.string().optional(),
+  S3_REGION: z.string().default("us-east-1"),
+  S3_BUCKET: z.string().default("kinynx"),
+  S3_ACCESS_KEY: z.string().optional(),
+  S3_SECRET_KEY: z.string().optional(),
+  S3_FORCE_PATH_STYLE: z.coerce.boolean().default(true),
 });
 
 export type Config = z.infer<typeof schema>;

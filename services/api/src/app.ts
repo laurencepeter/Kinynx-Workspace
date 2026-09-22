@@ -11,6 +11,7 @@ import { verifyAccessToken } from "./auth/tokens.js";
 import { createEmailProvider } from "./email/index.js";
 import { RealtimeHub } from "./realtime/hub.js";
 import { createRealtimeBus } from "./realtime/bus.js";
+import { createStorageDriver } from "./storage/index.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerOrgRoutes } from "./routes/organizations.js";
 import { registerWorkspaceRoutes } from "./routes/workspaces.js";
@@ -23,6 +24,11 @@ import { registerDatabaseRoutes } from "./routes/databases.js";
 import { registerHistoryRoutes } from "./routes/history.js";
 import { registerPortabilityRoutes } from "./routes/portability.js";
 import { registerRealtimeRoutes } from "./routes/realtime.js";
+import { registerCommentRoutes } from "./routes/comments.js";
+import { registerNotificationRoutes } from "./routes/notifications.js";
+import { registerPublishingRoutes } from "./routes/publishing.js";
+import { registerFileRoutes } from "./routes/files.js";
+import { registerOpenApiRoutes } from "./routes/openapi.js";
 import "./types.js";
 
 export async function buildApp(config: Config): Promise<FastifyInstance> {
@@ -40,11 +46,15 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   app.decorate("config", config);
   app.decorate("entitlements", resolveEntitlements(config));
   app.decorate("email", createEmailProvider(config));
+  app.decorate("storage", await createStorageDriver(config));
   const bus = await createRealtimeBus(config.REDIS_URL);
   app.decorate("hub", new RealtimeHub(bus));
   app.addHook("onClose", async () => {
     await bus.close();
   });
+
+  // Raw binary body for direct file uploads (metadata comes from the files row).
+  app.addContentTypeParser("application/octet-stream", { parseAs: "buffer" }, (_req, body, done) => done(null, body));
 
   app.decorate(
     "authenticate",
@@ -86,6 +96,11 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(registerDatabaseRoutes);
   await app.register(registerHistoryRoutes);
   await app.register(registerPortabilityRoutes);
+  await app.register(registerCommentRoutes);
+  await app.register(registerNotificationRoutes);
+  await app.register(registerPublishingRoutes);
+  await app.register(registerFileRoutes);
+  await app.register(registerOpenApiRoutes);
   await app.register(registerRealtimeRoutes);
 
   return app;

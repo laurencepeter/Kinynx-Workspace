@@ -121,6 +121,42 @@ checklist, code, quote, divider, embed, child_page`.
 | GET | `/api/pages/:id/export` | viewer | Export a page subtree as portable JSON |
 | POST | `/api/workspaces/:workspaceId/import` | editor | Import a portable JSON tree (regenerates IDs) |
 
+## Comments, mentions & notifications
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| POST | `/api/comments` | commenter | Comment on a `page`/`block`/`record`; `mentions[]` notify users |
+| GET | `/api/comments?target_type=&target_id=` | viewer | List comments for a target |
+| POST | `/api/comments/:id/resolve` | commenter | Resolve a thread |
+| DELETE | `/api/comments/:id` | author/editor | Delete a comment |
+| GET | `/api/notifications?unread=1` | authed | My notifications |
+| GET | `/api/notifications/unread-count` | authed | Unread badge count |
+| POST | `/api/notifications/:id/read` · `/read-all` | authed | Mark read |
+
+## Publishing (public pages)
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| POST | `/api/pages/:id/publish` | admin | Publish read-only (`slug`, `password?`, `seo`) → returns public URL |
+| DELETE | `/api/pages/:id/publish` | admin | Unpublish |
+| GET | `/api/public/:slug` | public | Render a published page; password via `?password=` or `x-page-password` |
+
+## Files (attachments)
+
+Metadata in Postgres, bytes in object storage (local / S3 / MinIO / R2).
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| POST | `/api/workspaces/:workspaceId/files` | editor | Create metadata; returns an upload target (presigned PUT on S3, else direct) |
+| PUT | `/api/files/:id/content` | editor | Direct byte upload (`application/octet-stream`) |
+| GET | `/api/files/:id` | viewer | Metadata + download URL |
+| GET | `/api/files/:id/content` | viewer | Stream bytes |
+| DELETE | `/api/files/:id` | editor | Delete object + metadata |
+
+## OpenAPI
+
+`GET /api/openapi.json` (OpenAPI 3.1) · `GET /api/docs` (Redoc viewer).
+
 ## Realtime (WebSocket)
 
 ```

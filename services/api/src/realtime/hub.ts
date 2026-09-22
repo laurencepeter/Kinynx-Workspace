@@ -31,7 +31,8 @@ export type RealtimeEvent =
   | { type: "page.version"; pageId: string; version: number; by: string }
   | { type: "block.created"; pageId: string; block: unknown; by: string }
   | { type: "block.updated"; pageId: string; block: unknown; by: string }
-  | { type: "block.deleted"; pageId: string; blockId: string; by: string };
+  | { type: "block.deleted"; pageId: string; blockId: string; by: string }
+  | { type: "comment.created"; targetType: string; targetId: string; comment: unknown; by: string };
 
 export class RealtimeHub {
   private conns = new Map<string, Connection>();
