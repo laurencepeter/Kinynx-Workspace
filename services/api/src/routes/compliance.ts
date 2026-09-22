@@ -3,6 +3,7 @@ import { z } from "zod";
 import { assertCan } from "@kinynx/permissions";
 import { query } from "../db/pool.js";
 import { orgRole } from "../access.js";
+import { RETENTION_RESOURCES as RESOURCES, applyRetentionForOrg } from "../jobs/index.js";
 
 /**
  * Data retention policies + legal hold (Enterprise compliance).
@@ -11,7 +12,6 @@ import { orgRole } from "../access.js";
  * data under investigation is preserved. Gated on the retention_policies /
  * legal_hold entitlements.
  */
-const RESOURCES = ["audit_logs", "notifications"] as const;
 
 export async function registerComplianceRoutes(app: FastifyInstance): Promise<void> {
   const gate = (reply: FastifyReply, flag: "retention_policies" | "legal_hold"): boolean => {
@@ -73,21 +73,6 @@ export async function registerComplianceRoutes(app: FastifyInstance): Promise<vo
     const { orgId } = z.object({ orgId: z.string().uuid() }).parse(request.params);
     assertCan(await orgRole(app.db, request.user!.id, orgId), "org:update");
     if (!gate(reply, "retention_policies")) return reply;
-
-    const held = await query(app.db, "SELECT 1 FROM legal_holds WHERE organization_id=$1 AND active LIMIT 1", [orgId]);
-    if (held.length > 0) return reply.send({ applied: false, reason: "legal hold active", deleted: {} });
-
-    const policies = await query<{ resource: string; retain_days: number }>(app.db, "SELECT resource, retain_days FROM retention_policies WHERE organization_id=$1", [orgId]);
-    const deleted: Record<string, number> = {};
-    for (const p of policies) {
-      // Resource name is from a fixed allowlist (RESOURCES), never user free-text.
-      if (!(RESOURCES as readonly string[]).includes(p.resource)) continue;
-      const res = await app.db.query(
-        `DELETE FROM ${p.resource} WHERE organization_id=$1 AND created_at < now() - ($2 || ' days')::interval`,
-        [orgId, String(p.retain_days)],
-      );
-      deleted[p.resource] = res.rowCount ?? 0;
-    }
-    return reply.send({ applied: true, deleted });
+    return reply.send(await applyRetentionForOrg(app.db, orgId));
   });
 }
