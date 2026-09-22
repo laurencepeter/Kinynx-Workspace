@@ -27,6 +27,16 @@ const schema = z.object({
   // If unset, any organization owner is treated as a deployment admin (self-host).
   ADMIN_EMAILS: z.string().optional(),
 
+  // ── OIDC / OAuth single sign-on (generic; works with Authentik, Keycloak,
+  //    Google, Okta, Entra ID, …). Explicit endpoints avoid live discovery. ──
+  OIDC_CLIENT_ID: z.string().optional(),
+  OIDC_CLIENT_SECRET: z.string().optional(),
+  OIDC_AUTH_URL: z.string().optional(),
+  OIDC_TOKEN_URL: z.string().optional(),
+  OIDC_USERINFO_URL: z.string().optional(),
+  OIDC_REDIRECT_URI: z.string().optional(),
+  OIDC_SCOPES: z.string().default("openid email profile"),
+
   // ── Email ──────────────────────────────────────────────────────────────
   EMAIL_DRIVER: z.enum(["console", "smtp", "mailjet"]).default("console"),
   EMAIL_FROM: z.string().default("Kinynx <no-reply@kinynx.local>"),

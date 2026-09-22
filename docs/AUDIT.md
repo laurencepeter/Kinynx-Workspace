@@ -7,7 +7,7 @@ Updated as the build progresses.
 |---|---|---|---|
 | 1 | Three-tier business model | ✅ | `packages/shared` entitlements (community/team/enterprise) |
 | 2 | Configurable Team limits | ✅ | Limits are data, not hard-coded; license can override |
-| 3 | Enterprise features | 🟡 | LDAP/Authentik sync ✅, audit read ✅; SAML/OIDC session, custom roles, IP allowlist, MFA policies ⛔ |
+| 3 | Enterprise features | 🟡 | LDAP/Authentik sync ✅, OIDC login ✅, audit read ✅; SAML, custom roles, IP allowlist, MFA policies ⛔ |
 | 4 | Core/Enterprise license split | ✅ | Apache-2.0 core; `/enterprise` commercial; no core→enterprise imports |
 | 5 | Block-based editor (data model) | ✅ | First-class `blocks`; rich editor UI is minimal (reference client) |
 | 6 | Database system | 🟡 | Properties, records, report, default view ✅; board/calendar/timeline rendering, formulas, rollups ⛔ |
@@ -18,7 +18,7 @@ Updated as the build progresses.
 | 11 | Publishing (public pages) | ✅ | Public read-only pages by slug, SEO metadata, optional password |
 | 12 | Search | ✅ | Postgres FTS; Meilisearch/OpenSearch pluggable later |
 | 13 | File storage (metadata in PG, bytes in object store) | ✅ | StorageDriver (local + S3/MinIO/R2); files API; bytes never in PG |
-| 14 | Authentication | 🟡 | email/password ✅; magic link ✅; LDAP/Authentik sync ✅; OAuth, SAML/OIDC login ⛔ |
+| 14 | Authentication | ✅ | email/password ✅; magic link ✅; OIDC/OAuth login ✅; LDAP/Authentik sync ✅; SAML ⛔ |
 | 15 | API + OpenAPI | ✅ | REST for all core resources; `/api/openapi.json` served |
 | 16 | Integrations framework | ✅ | Provider registry (webhook/slack/discord/teams/github/gitlab); actions call integrations; secrets never returned |
 | 17 | Automation engine | ✅ | WHEN trigger [+ filter] THEN actions; webhook (HMAC-signed)/notification/email/integration; run log |
@@ -37,7 +37,7 @@ Updated as the build progresses.
 | 30 | First-deliverable checklist | ✅ | Arch, schema, API, permissions, template spec, licensing, Docker, auth, editor slice |
 
 ## Remaining (lower priority)
-- Enterprise SAML/OIDC **login** session issuance (LDAP/Authentik sync is done)
+- SAML login (OIDC/OAuth login is done; LDAP/Authentik sync is done)
 - Custom roles / fine-grained ACL editor (base RBAC + page ACLs exist)
 - Admin **web UI** (backend done)
 - Database board/calendar/timeline **rendering** + formulas/rollups (data model + reports done)

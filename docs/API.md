@@ -34,6 +34,9 @@ short-lived JWTs (15 min default); rotate with the refresh token.
 | POST | `/api/auth/magic-link/request` | `{ email }` → emails a single-use sign-in link (always 200) |
 | POST | `/api/auth/magic-link/verify` | `{ token }` → session (creates the user if new) |
 | GET | `/api/auth/me` | current user |
+| GET | `/api/auth/oidc/status` | whether OIDC/OAuth SSO is configured |
+| GET | `/api/auth/oidc/login` | begin SSO — returns the IdP authorize URL |
+| GET | `/api/auth/oidc/callback` | code exchange → session (provisions user by email) |
 
 A **session** is `{ access_token, refresh_token, token_type: "Bearer", expires_in }`.
 
