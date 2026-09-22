@@ -105,8 +105,13 @@ checklist, code, quote, divider, embed, child_page`.
 | GET | `/api/databases/:id` | viewer | Database + properties + views |
 | POST | `/api/databases/:id/properties` | editor | Add a typed property (select options carry `color`) |
 | POST | `/api/databases/:id/views` | editor | Add a view (`table/board/calendar/gallery/list/timeline`) |
-| GET/POST | `/api/databases/:id/records` | viewer/editor | List / create records |
+| GET/POST | `/api/databases/:id/records` | viewer/editor | List (add `?compute=1` for formula/rollup values) / create records |
 | PATCH/DELETE | `/api/records/:id` | editor | Update (JSONB merge) / delete a record |
+
+**Formula** properties: `config.expression` (e.g. `"[Price] * [Qty]"`) — safe
+arithmetic over other properties by name. **Rollup** properties:
+`config = { via: <relation propId>, target: <propId>, agg: count|sum|avg|min|max }`.
+Both are computed at read time and returned under each record's `computed` map.
 | GET | `/api/databases/:id/report?group_by=&progress=` | viewer | Statistics: counts per status (with colors) + progress rollup |
 
 ## History, versioning & audit

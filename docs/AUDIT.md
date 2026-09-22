@@ -10,7 +10,7 @@ Updated as the build progresses.
 | 3 | Enterprise features | 🟡 | LDAP/Authentik sync ✅, OIDC login ✅, custom roles ✅, audit read ✅; SAML, IP allowlist, MFA policies ⛔ |
 | 4 | Core/Enterprise license split | ✅ | Apache-2.0 core; `/enterprise` commercial; no core→enterprise imports |
 | 5 | Block-based editor (data model) | ✅ | First-class `blocks`; rich editor UI is minimal (reference client) |
-| 6 | Database system | 🟡 | Properties, records, report, default view ✅; board/calendar/timeline rendering, formulas, rollups ⛔ |
+| 6 | Database system | ✅ | Properties, records, views, report, **formulas + rollups** ✅; board/calendar/timeline are client rendering of stored views |
 | 7 | Collaboration | ✅ | Realtime presence + live sync, history/versioning ✅; **comments/mentions/notifications ✅**; live cursors, CRDT ⛔ |
 | 8 | Permissions (server-side) | ✅ | Server-side + group grants + custom roles (Enterprise advanced_permissions) |
 | 9 | Template system | ✅ | Portable JSON export/import ✅; `.template.zip` package export + import ✅ |
@@ -40,8 +40,8 @@ Updated as the build progresses.
 - SAML login (OIDC/OAuth login ✅; LDAP/Authentik sync ✅)
 - Fine-grained per-action grants on custom roles (base-role custom roles ✅)
 - Admin **web UI** (backend done)
-- Database board/calendar/timeline **rendering** + formulas/rollups (data model + reports done)
-- Live cursors / CRDT merge; IP allowlist / MFA policies
+- Database board/calendar/timeline **client rendering** (views + data + formulas/rollups done server-side)
+- Live cursors / CRDT merge; IP allowlist / MFA policies; SAML
 
 ## Next up (priority order)
 1. Realtime **Redis fan-out** ✅ · **LDAP/Authentik sync** ✅

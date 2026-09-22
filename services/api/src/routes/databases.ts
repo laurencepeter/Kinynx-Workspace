@@ -3,6 +3,7 @@ import { z } from "zod";
 import { assertCan } from "@kinynx/permissions";
 import { query } from "../db/pool.js";
 import { orgIdForWorkspace, workspaceRole } from "../access.js";
+import { aggregate, evaluateFormula } from "../database/compute.js";
 
 /** Heuristic: a value that reads as "done"/true marks a task complete. */
 function looksComplete(values: Record<string, unknown>): boolean {
@@ -22,6 +23,61 @@ const PROPERTY_TYPES = [
 ] as const;
 
 const VIEW_TYPES = ["table", "board", "calendar", "gallery", "list", "timeline"] as const;
+
+interface PropRow {
+  id: string;
+  name: string;
+  type: string;
+  config: { expression?: string; via?: string; target?: string; agg?: string };
+}
+
+/** Attach computed formula/rollup values to each record. */
+async function computeRecords(
+  app: FastifyInstance,
+  databaseId: string,
+  records: Array<{ id: string; values: Record<string, unknown> }>,
+): Promise<Array<{ id: string; values: Record<string, unknown>; computed: Record<string, number> }>> {
+  const props = await query<PropRow>(app.db, "SELECT id, name, type, config FROM database_properties WHERE database_id=$1", [databaseId]);
+  const nameToId = new Map(props.map((p) => [p.name, p.id]));
+  const rollups = props.filter((p) => p.type === "rollup" && p.config.via && p.config.target);
+
+  // Precompute rollups: relation property → { fromRecordId → [target values] }.
+  const rollupValues = new Map<string, Map<string, number>>();
+  for (const rp of rollups) {
+    const rel = await query<{ from_record_id: string; values: Record<string, unknown> }>(
+      app.db,
+      `SELECT rr.from_record_id, dr.values
+         FROM record_relations rr JOIN database_records dr ON dr.id = rr.to_record_id
+        WHERE rr.property_id = $1`,
+      [rp.config.via],
+    );
+    const grouped = new Map<string, number[]>();
+    for (const r of rel) {
+      const list = grouped.get(r.from_record_id) ?? [];
+      list.push(Number(r.values[rp.config.target!]));
+      grouped.set(r.from_record_id, list);
+    }
+    const perRecord = new Map<string, number>();
+    for (const [rid, list] of grouped) perRecord.set(rid, aggregate(list, rp.config.agg ?? "count"));
+    rollupValues.set(rp.id, perRecord);
+  }
+
+  const formulas = props.filter((p) => p.type === "formula" && p.config.expression);
+
+  return records.map((rec) => {
+    const computed: Record<string, number> = {};
+    for (const rp of rollups) computed[rp.id] = rollupValues.get(rp.id)?.get(rec.id) ?? aggregate([], rp.config.agg ?? "count");
+    for (const fp of formulas) {
+      computed[fp.id] = evaluateFormula(fp.config.expression!, (name) => {
+        const pid = nameToId.get(name);
+        if (!pid) return 0;
+        if (computed[pid] !== undefined) return computed[pid]; // reference a rollup result
+        return Number(rec.values[pid]);
+      });
+    }
+    return { ...rec, computed };
+  });
+}
 
 export async function registerDatabaseRoutes(app: FastifyInstance): Promise<void> {
   const wsRole = (userId: string, wsId: string) => workspaceRole(app.db, userId, wsId);
@@ -89,11 +145,17 @@ export async function registerDatabaseRoutes(app: FastifyInstance): Promise<void
 
   app.get("/api/databases/:id/records", { preHandler: app.authenticate }, async (request, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const q = z.object({ compute: z.coerce.boolean().optional() }).parse(request.query);
     const wsId = await dbWorkspace(id);
     if (!wsId) return reply.code(404).send({ error: "not found" });
     assertCan(await wsRole(request.user!.id, wsId), "record:read");
-    const rows = await query(app.db, "SELECT id, values, position, created_at, updated_at FROM database_records WHERE database_id=$1 ORDER BY position, created_at", [id]);
-    return reply.send({ records: rows });
+    const rows = await query<{ id: string; values: Record<string, unknown> }>(
+      app.db,
+      "SELECT id, values, position, created_at, updated_at FROM database_records WHERE database_id=$1 ORDER BY position, created_at",
+      [id],
+    );
+    if (!q.compute) return reply.send({ records: rows });
+    return reply.send({ records: await computeRecords(app, id, rows) });
   });
 
   app.post("/api/databases/:id/records", { preHandler: app.authenticate }, async (request, reply) => {
