@@ -219,6 +219,17 @@ Browsing and downloading are **public** (no paid account); publishing needs auth
 | POST | `/api/workspaces/:workspaceId/templates/import-zip` | editor | Import an uploaded `.template.zip` (octet-stream) |
 | POST | `/api/templates/:id/rate` | authed | Rate 1–5 |
 
+## Compliance (Enterprise: retention + legal hold)
+
+| Method | Path | Description |
+|---|---|---|
+| GET/PUT | `/api/organizations/:orgId/retention` | List / set retention policy (`resource`, `retain_days`) |
+| POST | `/api/organizations/:orgId/retention/apply` | Delete aged records now (suspended by an active legal hold) |
+| GET/POST | `/api/organizations/:orgId/legal-holds` | List / create a legal hold |
+| POST | `/api/legal-holds/:id/release` | Release a hold |
+
+Gated on the `retention_policies` / `legal_hold` entitlements.
+
 ## Billing
 
 | Method | Path | Min role | Description |
