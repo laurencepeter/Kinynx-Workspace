@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { assertCan } from "@kinynx/permissions";
 import { query } from "../db/pool.js";
-import { pageRole } from "../access.js";
+import { pageRole, workspaceRole } from "../access.js";
 import { rewritePrompt, summarizePrompt } from "../ai/index.js";
 
 /**
@@ -49,6 +49,38 @@ export async function registerAIRoutes(app: FastifyInstance): Promise<void> {
     if (!guard(reply)) return reply;
     const { text } = await app.ai!.complete(rewritePrompt(body.text, body.instruction));
     return reply.send({ text });
+  });
+
+  // Ask a question over a workspace's knowledge (retrieval-augmented): find the
+  // most relevant pages via Postgres full-text search, then answer with context.
+  app.post("/api/ai/ask", { preHandler: app.authenticate }, async (request, reply) => {
+    const body = z.object({ workspace_id: z.string().uuid(), question: z.string().min(1).max(1000) }).parse(request.body);
+    assertCan(await workspaceRole(app.db, request.user!.id, body.workspace_id), "page:read");
+    if (!guard(reply)) return reply;
+
+    const pages = await query<{ id: string; title: string }>(
+      app.db,
+      `SELECT id, title FROM pages
+        WHERE workspace_id=$1 AND archived_at IS NULL
+          AND search_tsv @@ plainto_tsquery('english', $2)
+        ORDER BY ts_rank(search_tsv, plainto_tsquery('english', $2)) DESC
+        LIMIT 5`,
+      [body.workspace_id, body.question],
+    );
+    // Build a bounded context from the top pages' blocks.
+    const parts: string[] = [];
+    for (const p of pages) {
+      const blocks = await query<{ content: Record<string, unknown> }>(app.db, "SELECT content FROM blocks WHERE page_id=$1 ORDER BY position LIMIT 40", [p.id]);
+      const text = blocks.map((b) => String(b.content.text ?? b.content.code ?? "")).filter(Boolean).join("\n");
+      parts.push(`## ${p.title}\n${text}`.slice(0, 2000));
+    }
+    const context = parts.join("\n\n---\n\n") || "(no matching pages)";
+    const { text: answer } = await app.ai!.complete({
+      system: "Answer the user's question using ONLY the provided workspace context. If the answer isn't in the context, say so.",
+      prompt: `Workspace context:\n${context}\n\nQuestion: ${body.question}`,
+      maxTokens: 700,
+    });
+    return reply.send({ answer, sources: pages.map((p) => ({ id: p.id, title: p.title })) });
   });
 
   app.post("/api/ai/complete", { preHandler: app.authenticate }, async (request, reply) => {

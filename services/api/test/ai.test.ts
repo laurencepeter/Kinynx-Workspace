@@ -51,6 +51,20 @@ test("summarize returns a completion for a readable page", { skip }, async () =>
   assert.match(res.json().summary, /mock summary/);
 });
 
+test("workspace Q&A retrieves relevant pages and answers with context", { skip }, async () => {
+  const reg = await app!.inject({ method: "POST", url: "/api/auth/register", payload: { email: `ask${s}@ex.com`, password: "supersecret1" } });
+  const token = reg.json().access_token as string;
+  const org = (await app!.inject({ method: "POST", url: "/api/organizations", headers: auth(token), payload: { name: "QA" } })).json().organization;
+  const ws = (await app!.inject({ method: "POST", url: `/api/organizations/${org.id}/workspaces`, headers: auth(token), payload: { name: "W" } })).json().workspace;
+  const page = (await app!.inject({ method: "POST", url: `/api/workspaces/${ws.id}/pages`, headers: auth(token), payload: { title: "Quarterly Roadmap Plan" } })).json().page;
+  await app!.inject({ method: "POST", url: `/api/pages/${page.id}/blocks`, headers: auth(token), payload: { type: "paragraph", content: { text: "Ship the marketplace in Q3." } } });
+
+  const res = await app!.inject({ method: "POST", url: "/api/ai/ask", headers: auth(token), payload: { workspace_id: ws.id, question: "roadmap plan" } });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.json().answer, /mock summary/);
+  assert.ok(res.json().sources.some((p: { id: string }) => p.id === page.id));
+});
+
 test("external providers are refused when policy disables them", { skip }, async () => {
   const reg = await policyApp!.inject({ method: "POST", url: "/api/auth/register", payload: { email: `aipol${s}@ex.com`, password: "supersecret1" } });
   const token = reg.json().access_token as string;

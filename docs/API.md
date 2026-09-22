@@ -202,6 +202,7 @@ Self-hosters can run local models; Enterprise can set `AI_ALLOW_EXTERNAL=false`.
 | POST | `/api/ai/summarize` | page viewer | Summarize a page (`page_id`) |
 | POST | `/api/ai/rewrite` | authed | Rewrite `text` per `instruction` |
 | POST | `/api/ai/complete` | authed | Generic completion (`system?`, `prompt`) |
+| POST | `/api/ai/ask` | workspace viewer | Workspace Q&A (RAG): FTS-retrieve pages → answer with sources |
 
 ## Custom roles (Enterprise `advanced_permissions`)
 
