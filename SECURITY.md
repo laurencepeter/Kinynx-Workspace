@@ -37,6 +37,19 @@ a trust boundary.
 - **Org security policies**: IPv4 allowlist and required-MFA, enforced at
   authentication (Enterprise `advanced_security`).
 - **Compliance**: retention policies with legal-hold suspension of deletion.
+- **Published pages**: password protection uses Argon2id; the public read route
+  is rate-limited (60/min/IP) and passwords are ≥8 chars to blunt brute-force.
+
+## Review notes
+
+A full pass over the codebase confirmed: all SQL uses parameterized values (the
+sole dynamic table name, in retention jobs, is validated against a fixed
+allowlist); every public route is intentional (auth flows, published pages with
+password checks, the public template marketplace, and the WebSocket which
+authenticates inside the handler); mutating routes resolve scope from the target
+resource (no IDOR) and enforce permissions server-side; SSO signature
+verification is delegated to vetted libraries (jose, @node-saml/node-saml);
+secrets are never returned by list endpoints and never logged.
 - **Error handling**: a central handler avoids leaking internals; 5xx are logged
   server-side, clients get a generic message.
 - **Licensing**: Ed25519 signature verification is **offline**; there is no

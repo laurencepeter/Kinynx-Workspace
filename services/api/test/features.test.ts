@@ -72,7 +72,7 @@ test("publishing: password-protected public page", { skip }, async () => {
   const page = (await app!.inject({ method: "POST", url: `/api/workspaces/${ws.id}/pages`, headers: auth(owner.token), payload: { title: "Public Doc" } })).json().page;
   await app!.inject({ method: "POST", url: `/api/pages/${page.id}/blocks`, headers: auth(owner.token), payload: { type: "paragraph", content: { text: "visible" } } });
 
-  const pub = await app!.inject({ method: "POST", url: `/api/pages/${page.id}/publish`, headers: auth(owner.token), payload: { password: "secret1", seo: { title: "Public Doc" } } });
+  const pub = await app!.inject({ method: "POST", url: `/api/pages/${page.id}/publish`, headers: auth(owner.token), payload: { password: "secret12", seo: { title: "Public Doc" } } });
   assert.equal(pub.statusCode, 201);
   const slug = pub.json().slug as string;
   assert.equal(pub.json().password_protected, true);
@@ -80,7 +80,7 @@ test("publishing: password-protected public page", { skip }, async () => {
   const noPw = await app!.inject({ method: "GET", url: `/api/public/${slug}` });
   assert.equal(noPw.statusCode, 401);
 
-  const withPw = await app!.inject({ method: "GET", url: `/api/public/${slug}?password=secret1` });
+  const withPw = await app!.inject({ method: "GET", url: `/api/public/${slug}?password=secret12` });
   assert.equal(withPw.statusCode, 200);
   assert.equal(withPw.json().page.title, "Public Doc");
   assert.ok(withPw.json().blocks.some((b: { content: { text?: string } }) => b.content.text === "visible"));

@@ -20,7 +20,7 @@ export async function registerPublishingRoutes(app: FastifyInstance): Promise<vo
     const body = z
       .object({
         slug: z.string().min(3).max(80).regex(/^[a-z0-9-]+$/).optional(),
-        password: z.string().min(4).max(100).nullable().optional(),
+        password: z.string().min(8).max(100).nullable().optional(),
         seo: z.object({ title: z.string().max(200).optional(), description: z.string().max(400).optional(), image: z.string().url().optional() }).default({}),
       })
       .parse(request.body);
@@ -58,8 +58,9 @@ export async function registerPublishingRoutes(app: FastifyInstance): Promise<vo
     return reply.code(204).send();
   });
 
-  // PUBLIC — no auth. Read-only rendering of a published page.
-  app.get("/api/public/:slug", async (request, reply) => {
+  // PUBLIC — no auth. Read-only rendering of a published page. Rate-limited to
+  // blunt password brute-force on protected pages while allowing normal viewing.
+  app.get("/api/public/:slug", { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } }, async (request, reply) => {
     const { slug } = z.object({ slug: z.string().min(1).max(80) }).parse(request.params);
     const pub = (
       await query<{ page_id: string; password_hash: string | null; seo: unknown }>(
