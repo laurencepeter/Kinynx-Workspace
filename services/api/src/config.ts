@@ -1,6 +1,17 @@
 /** Environment configuration, validated once at startup. */
 import { z } from "zod";
 
+/** Env booleans: "false"/"0"/"no"/"off" → false (z.coerce.boolean treats any non-empty string as true). */
+const envBool = (def: boolean) =>
+  z
+    .union([z.boolean(), z.string()])
+    .optional()
+    .transform((v) => {
+      if (v === undefined || v === "") return def;
+      if (typeof v === "boolean") return v;
+      return !["false", "0", "no", "off"].includes(v.trim().toLowerCase());
+    });
+
 const schema = z.object({
   NODE_ENV: z.string().default("development"),
   API_PORT: z.coerce.number().default(4000),
@@ -31,7 +42,15 @@ const schema = z.object({
   S3_BUCKET: z.string().default("kinynx"),
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
-  S3_FORCE_PATH_STYLE: z.coerce.boolean().default(true),
+  S3_FORCE_PATH_STYLE: envBool(true),
+
+  // ── AI provider (pluggable; self-hosters can use local models) ───────────
+  AI_PROVIDER: z.enum(["none", "mock", "anthropic", "openai", "google", "ollama", "openrouter", "custom"]).default("none"),
+  AI_API_KEY: z.string().optional(),
+  AI_BASE_URL: z.string().optional(),
+  AI_MODEL: z.string().optional(),
+  // Enterprise policy: when false, external providers are refused (local only).
+  AI_ALLOW_EXTERNAL: envBool(true),
 });
 
 export type Config = z.infer<typeof schema>;

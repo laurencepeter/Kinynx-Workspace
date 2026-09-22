@@ -170,6 +170,18 @@ Metadata in Postgres, bytes in object storage (local / S3 / MinIO / R2).
 `email`, `slack`/`discord`/`call_integration`. `trigger_filter` is an equality
 match on the event payload; action messages support `{{data.field}}`.
 
+## AI (pluggable provider)
+
+Configure via `AI_PROVIDER` (`anthropic`/`openai`/`google`/`ollama`/`openrouter`/`custom`/`mock`).
+Self-hosters can run local models; Enterprise can set `AI_ALLOW_EXTERNAL=false`.
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| GET | `/api/ai/status` | public | Whether AI is enabled, provider, external policy |
+| POST | `/api/ai/summarize` | page viewer | Summarize a page (`page_id`) |
+| POST | `/api/ai/rewrite` | authed | Rewrite `text` per `instruction` |
+| POST | `/api/ai/complete` | authed | Generic completion (`system?`, `prompt`) |
+
 ## OpenAPI
 
 `GET /api/openapi.json` (OpenAPI 3.1) · `GET /api/docs` (Redoc viewer).

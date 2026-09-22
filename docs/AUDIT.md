@@ -22,7 +22,7 @@ Updated as the build progresses.
 | 15 | API + OpenAPI | ✅ | REST for all core resources; `/api/openapi.json` served |
 | 16 | Integrations framework | ✅ | Provider registry (webhook/slack/discord/teams/github/gitlab); actions call integrations; secrets never returned |
 | 17 | Automation engine | ✅ | WHEN trigger [+ filter] THEN actions; webhook (HMAC-signed)/notification/email/integration; run log |
-| 18 | AI provider abstraction | ⛔ | Planned (Phase 7) |
+| 18 | AI provider abstraction | ✅ | Pluggable: anthropic/openai/google/ollama/openrouter/custom/mock; summarize/rewrite/complete; external providers disableable by policy |
 | 19 | Self-hosting (Docker) | ✅ | `docker compose up -d`; air-gap friendly |
 | 20 | One codebase → 3 deployments | ✅ | Same core; edition via entitlements |
 | 21 | Multi-tenancy | ✅ | User→Org→Workspace; a user in many orgs |
@@ -42,8 +42,8 @@ Updated as the build progresses.
 3. **File storage** (local + S3/MinIO) ✅
 4. **Publishing** public pages ✅
 5. **OpenAPI** document ✅
-6. **Integrations framework + webhooks** ✅ · **Automation engine** ✅
-7. AI provider abstraction (OpenAI/Anthropic/Ollama/custom) — next
-8. Template `.template.zip` packaging + marketplace (Phase 4)
-9. Enterprise: SAML/OIDC login, custom roles, license upload endpoint, admin console
-10. Billing provider abstraction (Stripe/manual)
+6. **Integrations framework + webhooks** ✅ · **Automation engine** ✅ · **AI abstraction** ✅
+7. Template `.template.zip` packaging + marketplace (Phase 4)
+8. Enterprise: SAML/OIDC login, custom roles, license upload endpoint, admin console
+9. Billing provider abstraction (Stripe/manual)
+10. Magic-link / OAuth login; database board/calendar/timeline rendering; formulas/rollups

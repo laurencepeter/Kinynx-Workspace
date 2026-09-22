@@ -14,6 +14,7 @@ import { createRealtimeBus } from "./realtime/bus.js";
 import { createStorageDriver } from "./storage/index.js";
 import { EventBus } from "./automation/events.js";
 import { AutomationEngine } from "./automation/engine.js";
+import { createAIProvider } from "./ai/index.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerOrgRoutes } from "./routes/organizations.js";
 import { registerWorkspaceRoutes } from "./routes/workspaces.js";
@@ -33,6 +34,7 @@ import { registerFileRoutes } from "./routes/files.js";
 import { registerOpenApiRoutes } from "./routes/openapi.js";
 import { registerAutomationRoutes } from "./routes/automations.js";
 import { registerIntegrationRoutes } from "./routes/integrations.js";
+import { registerAIRoutes } from "./routes/ai.js";
 import "./types.js";
 
 export async function buildApp(config: Config): Promise<FastifyInstance> {
@@ -51,6 +53,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   app.decorate("entitlements", resolveEntitlements(config));
   app.decorate("email", createEmailProvider(config));
   app.decorate("storage", await createStorageDriver(config));
+  app.decorate("ai", createAIProvider(config));
   const bus = await createRealtimeBus(config.REDIS_URL);
   app.decorate("hub", new RealtimeHub(bus));
 
@@ -113,6 +116,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(registerOpenApiRoutes);
   await app.register(registerAutomationRoutes);
   await app.register(registerIntegrationRoutes);
+  await app.register(registerAIRoutes);
   await app.register(registerRealtimeRoutes);
 
   return app;
