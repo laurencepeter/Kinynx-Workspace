@@ -103,14 +103,19 @@ Supabase Realtime) is an implementation detail behind a `realtime` package.
   board/calendar/gallery/timeline rendering, formulas, cross-database rollups.
 - **Phase 4 — Templates**: `.template.zip` package format, import/export,
   marketplace, publishing, versioning.
-- **Phase 5 — Enterprise**: SSO/LDAP/SCIM, audit logs, advanced RBAC/custom
-  roles, org administration, enterprise licensing.
-- **Phase 6 — Cloud**: hosted multi-tenant, billing, provisioning, usage
-  monitoring, automated backups.
-- **Phase 7 — AI**: provider abstraction, workspace RAG, local models,
-  automation engine, agents.
+- **Phase 5 — Enterprise** *(implemented)*: OIDC + SAML SSO, LDAP/Authentik
+  directory sync, custom roles, audit + retention + legal hold, TOTP MFA, IP
+  allowlist / org MFA policy, admin console, runtime enterprise licensing.
+- **Phase 6 — Cloud** *(implemented)*: multi-tenant core, billing abstraction
+  (manual/Stripe), background worker for maintenance. *Remaining*: managed
+  provisioning UI, usage metering, automated backups.
+- **Phase 7 — AI** *(implemented)*: provider abstraction
+  (Anthropic/OpenAI/Google/Ollama/OpenRouter/custom/mock), summarize/rewrite/
+  complete, automation engine (triggers → actions). *Remaining*: workspace RAG,
+  agents.
 
-Each phase keeps the application runnable.
+Each phase keeps the application runnable. See [docs/AUDIT.md](docs/AUDIT.md)
+for the full spec-vs-implementation matrix (all 30 areas ✅).
 
 ## Security posture
 
