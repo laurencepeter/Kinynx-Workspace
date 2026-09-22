@@ -184,6 +184,23 @@ Self-hosters can run local models; Enterprise can set `AI_ALLOW_EXTERNAL=false`.
 | POST | `/api/ai/rewrite` | authed | Rewrite `text` per `instruction` |
 | POST | `/api/ai/complete` | authed | Generic completion (`system?`, `prompt`) |
 
+## Template marketplace
+
+Templates are portable packages (`.template.zip` = manifest.json + content/page.json).
+Browsing and downloading are **public** (no paid account); publishing needs auth.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/templates` | authed | Publish a template from a page subtree |
+| GET | `/api/templates?q=&category=` | public | Search the marketplace (FTS, ranked by downloads) |
+| GET | `/api/templates/categories` | public | Category list |
+| GET | `/api/templates/:id` | public | Metadata + avg rating + downloads |
+| GET | `/api/templates/:id/download` | public | Portable JSON package |
+| GET | `/api/templates/:id/download.zip` | public | `.template.zip` file |
+| POST | `/api/templates/:id/import` | editor | Import into a workspace (`workspace_id`) |
+| POST | `/api/workspaces/:workspaceId/templates/import-zip` | editor | Import an uploaded `.template.zip` (octet-stream) |
+| POST | `/api/templates/:id/rate` | authed | Rate 1–5 |
+
 ## Billing
 
 | Method | Path | Min role | Description |

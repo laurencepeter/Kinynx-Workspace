@@ -11,7 +11,7 @@ import { pageRole, workspaceRole } from "../access.js";
  * workspace — the basis of the .template.zip format (see docs/TEMPLATE_SPEC.md).
  * Nothing here depends on a marketplace server.
  */
-interface PortablePage {
+export interface PortablePage {
   title: string;
   icon?: string | null;
   color?: string | null;
@@ -19,7 +19,7 @@ interface PortablePage {
   children?: PortablePage[];
 }
 
-async function exportSubtree(db: pg.Pool, pageId: string): Promise<PortablePage> {
+export async function exportSubtree(db: pg.Pool, pageId: string): Promise<PortablePage> {
   const page = (await query<{ title: string; icon: string | null; color: string | null }>(
     db,
     "SELECT title, icon, color FROM pages WHERE id=$1",
@@ -40,7 +40,7 @@ async function exportSubtree(db: pg.Pool, pageId: string): Promise<PortablePage>
   return { title: page.title, icon: page.icon, color: page.color, blocks, children };
 }
 
-const portablePageSchema: z.ZodType<PortablePage> = z.lazy(() =>
+export const portablePageSchema: z.ZodType<PortablePage> = z.lazy(() =>
   z.object({
     title: z.string().max(400),
     icon: z.string().nullable().default(null),
@@ -52,7 +52,7 @@ const portablePageSchema: z.ZodType<PortablePage> = z.lazy(() =>
   }),
 );
 
-async function importSubtree(
+export async function importSubtree(
   client: pg.PoolClient,
   workspaceId: string,
   parentId: string | null,

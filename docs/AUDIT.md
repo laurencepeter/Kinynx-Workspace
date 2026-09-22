@@ -13,8 +13,8 @@ Updated as the build progresses.
 | 6 | Database system | 🟡 | Properties, records, report, default view ✅; board/calendar/timeline rendering, formulas, rollups ⛔ |
 | 7 | Collaboration | ✅ | Realtime presence + live sync, history/versioning ✅; **comments/mentions/notifications ✅**; live cursors, CRDT ⛔ |
 | 8 | Permissions (server-side) | ✅ | Enforced server-side + group grants; custom roles ⛔ (enterprise) |
-| 9 | Template system | 🟡 | Portable JSON export/import ✅; `.template.zip` packaging, fork/version ⛔ |
-| 10 | Template marketplace | ⛔ | Planned (Phase 4) |
+| 9 | Template system | ✅ | Portable JSON export/import ✅; `.template.zip` package export + import ✅ |
+| 10 | Template marketplace | ✅ | Publish/search/download/import/rate; categories; downloads; public (no paid account) |
 | 11 | Publishing (public pages) | ✅ | Public read-only pages by slug, SEO metadata, optional password |
 | 12 | Search | ✅ | Postgres FTS; Meilisearch/OpenSearch pluggable later |
 | 13 | File storage (metadata in PG, bytes in object store) | ✅ | StorageDriver (local + S3/MinIO/R2); files API; bytes never in PG |
@@ -35,6 +35,13 @@ Updated as the build progresses.
 | 28 | Phased, always-runnable build | ✅ | Phase 1–2 done, 3 core done |
 | 29 | Product philosophy | ✅ | Open, portable, API-first |
 | 30 | First-deliverable checklist | ✅ | Arch, schema, API, permissions, template spec, licensing, Docker, auth, editor slice |
+
+## Remaining (lower priority)
+- Enterprise SAML/OIDC **login** session issuance (LDAP/Authentik sync is done)
+- Custom roles / fine-grained ACL editor (base RBAC + page ACLs exist)
+- Admin **web UI** (backend done)
+- Database board/calendar/timeline **rendering** + formulas/rollups (data model + reports done)
+- OAuth social login; live cursors / CRDT merge
 
 ## Next up (priority order)
 1. Realtime **Redis fan-out** ✅ · **LDAP/Authentik sync** ✅
