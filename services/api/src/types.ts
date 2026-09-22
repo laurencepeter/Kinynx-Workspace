@@ -4,6 +4,7 @@ import type { Config } from "./config.js";
 import type { EmailProvider } from "./email/index.js";
 import type { RealtimeHub } from "./realtime/hub.js";
 import type { StorageDriver } from "./storage/index.js";
+import type { EventBus } from "./automation/events.js";
 
 export interface AuthUser {
   id: string;
@@ -18,6 +19,7 @@ declare module "fastify" {
     email: EmailProvider;
     hub: RealtimeHub;
     storage: StorageDriver;
+    events: EventBus;
     /** Verifies the bearer token and sets request.user, or replies 401. */
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }

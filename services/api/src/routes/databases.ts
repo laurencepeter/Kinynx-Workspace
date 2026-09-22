@@ -2,7 +2,12 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { assertCan } from "@kinynx/permissions";
 import { query } from "../db/pool.js";
-import { workspaceRole } from "../access.js";
+import { orgIdForWorkspace, workspaceRole } from "../access.js";
+
+/** Heuristic: a value that reads as "done"/true marks a task complete. */
+function looksComplete(values: Record<string, unknown>): boolean {
+  return Object.values(values).some((v) => v === true || String(v).toLowerCase() === "done" || String(v).toLowerCase() === "complete");
+}
 
 /**
  * Flexible databases power project management: records are first-class rows with
@@ -97,8 +102,12 @@ export async function registerDatabaseRoutes(app: FastifyInstance): Promise<void
     const wsId = await dbWorkspace(id);
     if (!wsId) return reply.code(404).send({ error: "not found" });
     assertCan(await wsRole(request.user!.id, wsId), "record:create");
-    const row = (await query(app.db, "INSERT INTO database_records (database_id, values, created_by) VALUES ($1,$2,$3) RETURNING id, values, created_at", [id, JSON.stringify(body.values), request.user!.id]))[0];
+    const row = (await query(app.db, "INSERT INTO database_records (database_id, values, created_by) VALUES ($1,$2,$3) RETURNING id, values, created_at", [id, JSON.stringify(body.values), request.user!.id]))[0] as { id: string };
     app.hub.publish(wsId, { type: "block.created", pageId: id, block: row, by: request.user!.email });
+    const orgId = await orgIdForWorkspace(app.db, wsId);
+    if (orgId) {
+      app.events.publish({ type: "record.created", workspaceId: wsId, organizationId: orgId, actorEmail: request.user!.email, data: { database_id: id, record_id: row.id, ...body.values } });
+    }
     return reply.code(201).send({ record: row });
   });
 
@@ -109,8 +118,16 @@ export async function registerDatabaseRoutes(app: FastifyInstance): Promise<void
     if (!ctx) return reply.code(404).send({ error: "not found" });
     assertCan(await wsRole(request.user!.id, ctx.workspace_id), "record:update");
     // Merge values (partial update) at the JSONB level.
-    const row = (await query(app.db, "UPDATE database_records SET values = values || $2::jsonb, updated_at = now() WHERE id=$1 RETURNING id, values, updated_at", [id, JSON.stringify(body.values)]))[0];
+    const row = (await query(app.db, "UPDATE database_records SET values = values || $2::jsonb, updated_at = now() WHERE id=$1 RETURNING id, values, updated_at", [id, JSON.stringify(body.values)]))[0] as { id: string; values: Record<string, unknown> };
     app.hub.publish(ctx.workspace_id, { type: "block.updated", pageId: ctx.database_id, block: row, by: request.user!.email });
+    const orgId = await orgIdForWorkspace(app.db, ctx.workspace_id);
+    if (orgId) {
+      const data = { database_id: ctx.database_id, record_id: id, ...row.values };
+      app.events.publish({ type: "record.updated", workspaceId: ctx.workspace_id, organizationId: orgId, actorEmail: request.user!.email, data });
+      if (looksComplete(body.values)) {
+        app.events.publish({ type: "task.completed", workspaceId: ctx.workspace_id, organizationId: orgId, actorEmail: request.user!.email, data });
+      }
+    }
     return reply.send({ record: row });
   });
 

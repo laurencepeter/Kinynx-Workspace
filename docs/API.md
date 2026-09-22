@@ -153,6 +153,23 @@ Metadata in Postgres, bytes in object storage (local / S3 / MinIO / R2).
 | GET | `/api/files/:id/content` | viewer | Stream bytes |
 | DELETE | `/api/files/:id` | editor | Delete object + metadata |
 
+## Integrations & automation
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| GET | `/api/integrations/providers` | public | Supported providers (webhook/slack/discord/teams/github/gitlab) |
+| GET/POST | `/api/workspaces/:workspaceId/integrations` | viewer/admin | List (no secrets) / create an integration |
+| DELETE | `/api/integrations/:id` | admin | Remove |
+| GET/POST | `/api/workspaces/:workspaceId/automations` | viewer/admin | List / create automation (`trigger_type`, `trigger_filter`, `actions[]`) |
+| PATCH/DELETE | `/api/automations/:id` | admin | Toggle/update / delete |
+| GET | `/api/automations/:id/runs` | admin | Execution log |
+
+**Triggers:** `page.created`, `record.created`, `record.updated`,
+`task.completed`, `comment.added`, `invite.accepted`.
+**Actions:** `webhook` (HMAC-signed `X-Kinynx-Signature`), `notification`,
+`email`, `slack`/`discord`/`call_integration`. `trigger_filter` is an equality
+match on the event payload; action messages support `{{data.field}}`.
+
 ## OpenAPI
 
 `GET /api/openapi.json` (OpenAPI 3.1) · `GET /api/docs` (Redoc viewer).

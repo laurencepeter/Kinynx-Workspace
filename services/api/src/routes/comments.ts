@@ -88,6 +88,13 @@ export async function registerCommentRoutes(app: FastifyInstance): Promise<void>
     }
 
     app.hub.publish(ctx.workspaceId, { type: "comment.created", targetType: body.target_type, targetId: body.target_id, comment, by: request.user!.email });
+    app.events.publish({
+      type: "comment.added",
+      workspaceId: ctx.workspaceId,
+      organizationId: ctx.orgId,
+      actorEmail: request.user!.email,
+      data: { target_type: body.target_type, target_id: body.target_id, comment_id: comment.id, excerpt: body.body.slice(0, 140) },
+    });
     return reply.code(201).send({ comment });
   });
 

@@ -12,6 +12,8 @@ import { createEmailProvider } from "./email/index.js";
 import { RealtimeHub } from "./realtime/hub.js";
 import { createRealtimeBus } from "./realtime/bus.js";
 import { createStorageDriver } from "./storage/index.js";
+import { EventBus } from "./automation/events.js";
+import { AutomationEngine } from "./automation/engine.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerOrgRoutes } from "./routes/organizations.js";
 import { registerWorkspaceRoutes } from "./routes/workspaces.js";
@@ -29,6 +31,8 @@ import { registerNotificationRoutes } from "./routes/notifications.js";
 import { registerPublishingRoutes } from "./routes/publishing.js";
 import { registerFileRoutes } from "./routes/files.js";
 import { registerOpenApiRoutes } from "./routes/openapi.js";
+import { registerAutomationRoutes } from "./routes/automations.js";
+import { registerIntegrationRoutes } from "./routes/integrations.js";
 import "./types.js";
 
 export async function buildApp(config: Config): Promise<FastifyInstance> {
@@ -49,6 +53,12 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   app.decorate("storage", await createStorageDriver(config));
   const bus = await createRealtimeBus(config.REDIS_URL);
   app.decorate("hub", new RealtimeHub(bus));
+
+  // Domain event bus → automation engine (WHEN trigger THEN actions).
+  const events = new EventBus();
+  new AutomationEngine(getPool(config.DATABASE_URL), createEmailProvider(config)).attach(events);
+  app.decorate("events", events);
+
   app.addHook("onClose", async () => {
     await bus.close();
   });
@@ -101,6 +111,8 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(registerPublishingRoutes);
   await app.register(registerFileRoutes);
   await app.register(registerOpenApiRoutes);
+  await app.register(registerAutomationRoutes);
+  await app.register(registerIntegrationRoutes);
   await app.register(registerRealtimeRoutes);
 
   return app;

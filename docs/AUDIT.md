@@ -20,8 +20,8 @@ Updated as the build progresses.
 | 13 | File storage (metadata in PG, bytes in object store) | ✅ | StorageDriver (local + S3/MinIO/R2); files API; bytes never in PG |
 | 14 | Authentication | 🟡 | email/password ✅; LDAP/Authentik sync ✅; magic link, OAuth, SAML/OIDC login ⛔ |
 | 15 | API + OpenAPI | ✅ | REST for all core resources; `/api/openapi.json` served |
-| 16 | Integrations framework | ⛔ | Planned (Phase 6) |
-| 17 | Automation engine | ⛔ | Planned (Phase 7) |
+| 16 | Integrations framework | ✅ | Provider registry (webhook/slack/discord/teams/github/gitlab); actions call integrations; secrets never returned |
+| 17 | Automation engine | ✅ | WHEN trigger [+ filter] THEN actions; webhook (HMAC-signed)/notification/email/integration; run log |
 | 18 | AI provider abstraction | ⛔ | Planned (Phase 7) |
 | 19 | Self-hosting (Docker) | ✅ | `docker compose up -d`; air-gap friendly |
 | 20 | One codebase → 3 deployments | ✅ | Same core; edition via entitlements |
@@ -42,8 +42,8 @@ Updated as the build progresses.
 3. **File storage** (local + S3/MinIO) ✅
 4. **Publishing** public pages ✅
 5. **OpenAPI** document ✅
-6. Template `.template.zip` packaging + marketplace (Phase 4)
-7. Integrations framework + webhooks (Phase 6)
-8. Automation engine (triggers → actions)
-9. AI provider abstraction (OpenAI/Anthropic/Ollama/…)
-10. Enterprise: SAML/OIDC login, custom roles, license upload endpoint, admin console
+6. **Integrations framework + webhooks** ✅ · **Automation engine** ✅
+7. AI provider abstraction (OpenAI/Anthropic/Ollama/custom) — next
+8. Template `.template.zip` packaging + marketplace (Phase 4)
+9. Enterprise: SAML/OIDC login, custom roles, license upload endpoint, admin console
+10. Billing provider abstraction (Stripe/manual)

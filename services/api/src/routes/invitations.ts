@@ -122,6 +122,15 @@ export async function registerInvitationRoutes(app: FastifyInstance): Promise<vo
     } finally {
       client.release();
     }
+    if (invite.workspace_id) {
+      app.events.publish({
+        type: "invite.accepted",
+        workspaceId: invite.workspace_id,
+        organizationId: invite.organization_id,
+        actorEmail: request.user!.email,
+        data: { invitation_id: invite.id, role: invite.role, email: request.user!.email },
+      });
+    }
     return reply.send({ ok: true, organization_id: invite.organization_id, role: invite.role });
   });
 

@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { assertCan } from "@kinynx/permissions";
 import { query } from "../db/pool.js";
-import { pageRole, workspaceRole } from "../access.js";
+import { orgIdForWorkspace, pageRole, workspaceRole } from "../access.js";
 
 export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
   // List the page tree (flat; client builds nesting from parent_id) for a workspace.
@@ -46,7 +46,18 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, parent_id, title, icon, color, position, updated_at`,
       [workspaceId, body.parent_id ?? null, body.title ?? "Untitled", body.icon ?? null, body.color ?? null, request.user!.id],
     );
-    return reply.code(201).send({ page: rows[0] });
+    const created = rows[0] as { id: string; title: string };
+    const orgId = await orgIdForWorkspace(app.db, workspaceId);
+    if (orgId) {
+      app.events.publish({
+        type: "page.created",
+        workspaceId,
+        organizationId: orgId,
+        actorEmail: request.user!.email,
+        data: { page_id: created.id, title: created.title },
+      });
+    }
+    return reply.code(201).send({ page: created });
   });
 
   // Get a page with its blocks.
