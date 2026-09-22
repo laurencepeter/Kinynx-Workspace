@@ -45,6 +45,7 @@ import { registerSamlRoutes } from "./routes/saml.js";
 import { registerRoleRoutes } from "./routes/roles.js";
 import { registerComplianceRoutes } from "./routes/compliance.js";
 import { registerSecurityRoutes } from "./routes/security.js";
+import { registerScimRoutes } from "./routes/scim.js";
 import { enforceOrgSecurity } from "./security/policy.js";
 import "./types.js";
 
@@ -145,6 +146,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(registerRoleRoutes);
   await app.register(registerComplianceRoutes);
   await app.register(registerSecurityRoutes);
+  await app.register(registerScimRoutes);
   await app.register(registerRealtimeRoutes);
 
   return app;

@@ -15,7 +15,7 @@ compliance on top of the open core. They are activated by a valid license (see
 | `directory-discovery/` | ✅ implemented | SSO/directory **auto-discovery**: map a sign-in email domain to a recommended identity provider and settings for IT to confirm; supports desktop auto sign-in on domain-joined devices. |
 | `directory-sync/` | ✅ implemented | **LDAP / Active Directory / Authentik** user & group **sync** (provisioning + deprovisioning). Normalizes any directory into a snapshot, then reconciles Kinynx groups & memberships idempotently. |
 | `sso/` | planned | SAML / OIDC connectors, session issuance |
-| `scim/` | planned | SCIM push endpoint (this module already models the pull/reconcile side) |
+| SCIM 2.0 inbound | ✅ implemented (in the API, `scim` entitlement) | The IdP pushes Users/Groups to `/scim/v2/*` with an org bearer token; complements this module's pull/reconcile side |
 | `audit/` | planned | Audit log reads, retention, export, legal hold |
 | `rbac/` | planned | Custom roles, fine-grained ACLs |
 | `admin/` | planned | Organization administration console |

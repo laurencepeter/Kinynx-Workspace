@@ -242,6 +242,15 @@ policy-bearing org must come from an allowed IP and (if `require_mfa`) have TOTP
 enrolled — MFA-enrollment endpoints stay reachable so nobody is locked out.
 Gated on `advanced_security`.
 
+## SCIM 2.0 inbound provisioning (Enterprise `scim`)
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/organizations/:orgId/scim/token` | Admin: (re)generate the org's SCIM bearer token |
+| POST/GET | `/scim/v2/Users` · `/Users/:id` | Provision / read users (Bearer = SCIM token) |
+| PATCH | `/scim/v2/Users/:id` | Deprovision/reactivate (`active`) |
+| POST | `/scim/v2/Groups` · PATCH `/Groups/:id` | Create group / add-remove members |
+
 ## Compliance (Enterprise: retention + legal hold)
 
 | Method | Path | Description |
