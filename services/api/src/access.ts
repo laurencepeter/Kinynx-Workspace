@@ -18,7 +18,11 @@ export async function orgRole(db: pg.Pool, userId: string, orgId: string): Promi
      SELECT gg.role FROM group_grants gg
        JOIN groups g ON g.id = gg.group_id
        JOIN group_members gm ON gm.group_id = g.id AND gm.user_id = $2
-      WHERE gg.scope_type = 'organization' AND gg.scope_id = $1`,
+      WHERE gg.scope_type = 'organization' AND gg.scope_id = $1
+     UNION ALL
+     SELECT cr.base_role AS role FROM custom_role_assignments cra
+       JOIN custom_roles cr ON cr.id = cra.custom_role_id
+      WHERE cra.user_id = $2 AND cra.scope_type = 'organization' AND cra.scope_id = $1`,
     [orgId, userId],
   );
   return effectiveRole(...rows.map((r) => r.role));
@@ -44,7 +48,14 @@ export async function workspaceRole(
      UNION ALL
      SELECT gg.role FROM group_grants gg
             JOIN group_members gm ON gm.group_id = gg.group_id AND gm.user_id = $2
-      WHERE gg.scope_type = 'workspace' AND gg.scope_id = $1`,
+      WHERE gg.scope_type = 'workspace' AND gg.scope_id = $1
+     UNION ALL
+     SELECT cr.base_role AS role FROM w
+            JOIN custom_role_assignments cra
+              ON (cra.scope_type = 'workspace' AND cra.scope_id = w.id)
+              OR (cra.scope_type = 'organization' AND cra.scope_id = w.organization_id)
+            JOIN custom_roles cr ON cr.id = cra.custom_role_id
+      WHERE cra.user_id = $2`,
     [workspaceId, userId],
   );
   return effectiveRole(...rows.map((r) => r.role));

@@ -7,12 +7,12 @@ Updated as the build progresses.
 |---|---|---|---|
 | 1 | Three-tier business model | ✅ | `packages/shared` entitlements (community/team/enterprise) |
 | 2 | Configurable Team limits | ✅ | Limits are data, not hard-coded; license can override |
-| 3 | Enterprise features | 🟡 | LDAP/Authentik sync ✅, OIDC login ✅, audit read ✅; SAML, custom roles, IP allowlist, MFA policies ⛔ |
+| 3 | Enterprise features | 🟡 | LDAP/Authentik sync ✅, OIDC login ✅, custom roles ✅, audit read ✅; SAML, IP allowlist, MFA policies ⛔ |
 | 4 | Core/Enterprise license split | ✅ | Apache-2.0 core; `/enterprise` commercial; no core→enterprise imports |
 | 5 | Block-based editor (data model) | ✅ | First-class `blocks`; rich editor UI is minimal (reference client) |
 | 6 | Database system | 🟡 | Properties, records, report, default view ✅; board/calendar/timeline rendering, formulas, rollups ⛔ |
 | 7 | Collaboration | ✅ | Realtime presence + live sync, history/versioning ✅; **comments/mentions/notifications ✅**; live cursors, CRDT ⛔ |
-| 8 | Permissions (server-side) | ✅ | Enforced server-side + group grants; custom roles ⛔ (enterprise) |
+| 8 | Permissions (server-side) | ✅ | Server-side + group grants + custom roles (Enterprise advanced_permissions) |
 | 9 | Template system | ✅ | Portable JSON export/import ✅; `.template.zip` package export + import ✅ |
 | 10 | Template marketplace | ✅ | Publish/search/download/import/rate; categories; downloads; public (no paid account) |
 | 11 | Publishing (public pages) | ✅ | Public read-only pages by slug, SEO metadata, optional password |
@@ -37,11 +37,11 @@ Updated as the build progresses.
 | 30 | First-deliverable checklist | ✅ | Arch, schema, API, permissions, template spec, licensing, Docker, auth, editor slice |
 
 ## Remaining (lower priority)
-- SAML login (OIDC/OAuth login is done; LDAP/Authentik sync is done)
-- Custom roles / fine-grained ACL editor (base RBAC + page ACLs exist)
+- SAML login (OIDC/OAuth login ✅; LDAP/Authentik sync ✅)
+- Fine-grained per-action grants on custom roles (base-role custom roles ✅)
 - Admin **web UI** (backend done)
 - Database board/calendar/timeline **rendering** + formulas/rollups (data model + reports done)
-- OAuth social login; live cursors / CRDT merge
+- Live cursors / CRDT merge; IP allowlist / MFA policies
 
 ## Next up (priority order)
 1. Realtime **Redis fan-out** ✅ · **LDAP/Authentik sync** ✅

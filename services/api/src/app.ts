@@ -40,6 +40,7 @@ import { registerAdminRoutes } from "./routes/admin.js";
 import { registerBillingRoutes } from "./routes/billing.js";
 import { registerTemplateRoutes } from "./routes/templates.js";
 import { registerOidcRoutes } from "./routes/oidc.js";
+import { registerRoleRoutes } from "./routes/roles.js";
 import "./types.js";
 
 export async function buildApp(config: Config): Promise<FastifyInstance> {
@@ -127,6 +128,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(registerBillingRoutes);
   await app.register(registerTemplateRoutes);
   await app.register(registerOidcRoutes);
+  await app.register(registerRoleRoutes);
   await app.register(registerRealtimeRoutes);
 
   return app;

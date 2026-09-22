@@ -187,6 +187,16 @@ Self-hosters can run local models; Enterprise can set `AI_ALLOW_EXTERNAL=false`.
 | POST | `/api/ai/rewrite` | authed | Rewrite `text` per `instruction` |
 | POST | `/api/ai/complete` | authed | Generic completion (`system?`, `prompt`) |
 
+## Custom roles (Enterprise `advanced_permissions`)
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| GET | `/api/organizations/:orgId/roles` | viewer | List custom roles |
+| POST | `/api/organizations/:orgId/roles` | admin | Create (`name`, `base_role`) — 402 if not entitled |
+| DELETE | `/api/roles/:id` | admin | Delete |
+| POST | `/api/roles/:id/assign` | admin | Assign to a member at org/workspace scope (elevates effective role) |
+| POST | `/api/roles/:id/unassign` | admin | Remove an assignment |
+
 ## Template marketplace
 
 Templates are portable packages (`.template.zip` = manifest.json + content/page.json).
