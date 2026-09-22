@@ -46,8 +46,12 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     };
   }
 
+  // Stricter per-route throttles on credential endpoints (brute-force defense),
+  // layered under the global limiter.
+  const tight = (max: number) => ({ config: { rateLimit: { max, timeWindow: "1 minute" } } });
+
   // POST /api/auth/register — email/password sign-up.
-  app.post("/api/auth/register", async (request, reply) => {
+  app.post("/api/auth/register", tight(30), async (request, reply) => {
     const body = credentials.parse(request.body);
     const existing = await query<UserRow>(app.db, "SELECT id FROM users WHERE email_norm = lower($1)", [
       body.email,
@@ -67,7 +71,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /api/auth/login
-  app.post("/api/auth/login", async (request, reply) => {
+  app.post("/api/auth/login", tight(20), async (request, reply) => {
     const body = z.object({ email: z.string().email(), password: z.string(), code: z.string().optional() }).parse(request.body);
     const rows = await query<UserRow>(
       app.db,
@@ -100,7 +104,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // Confirm setup with a code from the authenticator app.
-  app.post("/api/auth/mfa/enable", { preHandler: app.authenticate }, async (request, reply) => {
+  app.post("/api/auth/mfa/enable", { preHandler: app.authenticate, config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (request, reply) => {
     const { code } = z.object({ code: z.string() }).parse(request.body);
     const secret = (await query<{ mfa_secret: string | null }>(app.db, "SELECT mfa_secret FROM users WHERE id=$1", [request.user!.id]))[0]?.mfa_secret;
     if (!secret) return reply.code(400).send({ error: "run /mfa/setup first" });
@@ -110,7 +114,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // Disable MFA (requires a current code).
-  app.post("/api/auth/mfa/disable", { preHandler: app.authenticate }, async (request, reply) => {
+  app.post("/api/auth/mfa/disable", { preHandler: app.authenticate, config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (request, reply) => {
     const { code } = z.object({ code: z.string() }).parse(request.body);
     const secret = (await query<{ mfa_secret: string | null }>(app.db, "SELECT mfa_secret FROM users WHERE id=$1 AND mfa_enabled", [request.user!.id]))[0]?.mfa_secret;
     if (!secret) return reply.code(400).send({ error: "mfa not enabled" });
@@ -149,7 +153,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
   // POST /api/auth/magic-link/request — passwordless sign-in.
   // Always returns 200 (no user enumeration). Emails a single-use link.
-  app.post("/api/auth/magic-link/request", async (request, reply) => {
+  app.post("/api/auth/magic-link/request", tight(10), async (request, reply) => {
     const { email } = z.object({ email: z.string().email() }).parse(request.body);
     const raw = randomBytes(32).toString("base64url");
     const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
