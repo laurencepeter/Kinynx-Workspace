@@ -10,6 +10,7 @@ import { resolveEntitlements } from "./licensing.js";
 import { verifyAccessToken } from "./auth/tokens.js";
 import { createEmailProvider } from "./email/index.js";
 import { RealtimeHub } from "./realtime/hub.js";
+import { createRealtimeBus } from "./realtime/bus.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerOrgRoutes } from "./routes/organizations.js";
 import { registerWorkspaceRoutes } from "./routes/workspaces.js";
@@ -39,7 +40,11 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   app.decorate("config", config);
   app.decorate("entitlements", resolveEntitlements(config));
   app.decorate("email", createEmailProvider(config));
-  app.decorate("hub", new RealtimeHub());
+  const bus = await createRealtimeBus(config.REDIS_URL);
+  app.decorate("hub", new RealtimeHub(bus));
+  app.addHook("onClose", async () => {
+    await bus.close();
+  });
 
   app.decorate(
     "authenticate",

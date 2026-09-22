@@ -40,11 +40,10 @@ export async function registerRealtimeRoutes(app: FastifyInstance): Promise<void
     if (!can(role, "workspace:read")) return close(4403, "forbidden");
 
     const connId = randomUUID();
-    app.hub.join(connId, socket, q.workspaceId, { userId, email, pageId: null, state: "viewing" });
-    // Send the joiner the current presence snapshot immediately.
-    socket.send(
-      JSON.stringify({ type: "presence", workspaceId: q.workspaceId, users: app.hub.presenceSnapshot(q.workspaceId) }),
-    );
+    await app.hub.join(connId, socket, q.workspaceId, { userId, email, pageId: null, state: "viewing" });
+    // Send the joiner the current presence snapshot immediately (across all nodes).
+    const snapshot = await app.hub.presenceSnapshot(q.workspaceId);
+    socket.send(JSON.stringify({ type: "presence", workspaceId: q.workspaceId, users: snapshot }));
 
     socket.on("message", (raw: Buffer) => {
       let msg: { type?: string; pageId?: string; state?: PresenceState };
@@ -54,14 +53,14 @@ export async function registerRealtimeRoutes(app: FastifyInstance): Promise<void
         return;
       }
       if (msg.type === "presence") {
-        app.hub.updatePresence(connId, {
+        void app.hub.updatePresence(connId, {
           pageId: msg.pageId ?? null,
           state: msg.state === "editing" ? "editing" : "viewing",
         });
       }
     });
 
-    socket.on("close", () => app.hub.leave(connId));
-    socket.on("error", () => app.hub.leave(connId));
+    socket.on("close", () => void app.hub.leave(connId));
+    socket.on("error", () => void app.hub.leave(connId));
   });
 }
