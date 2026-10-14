@@ -2,54 +2,38 @@
 // Expert tiers), the full tool catalog, drag-and-drop block reordering, the
 // signature/drawing pad, find & replace and document statistics.
 // Loaded after app.js and uses its globals (state, h, R, api helpers, …).
-// SECURITY: formatting is applied with execCommand / CSSOM inside the editor;
+// SECURITY: inline formatting goes through Tiptap commands (schema-checked);
 // what gets stored is re-sanitised by R.cleanRich and R.applyStyle on render.
 (function () {
   const TIERS = ["basic", "advanced", "expert"];
   const TIER_LABEL = { basic: "Basic", advanced: "Advanced", expert: "Expert" };
   let tier = (() => { try { return TIERS.includes(localStorage.getItem("kinynx_tier")) ? localStorage.getItem("kinynx_tier") : "basic"; } catch { return "basic"; } })();
 
-  // ── Selection & active block bookkeeping ──────────────────────────────────
-  let savedRange = null;
-  document.addEventListener("selectionchange", () => {
-    const sel = getSelection();
-    if (!sel.rangeCount) return;
-    const node = sel.anchorNode;
-    const ed = (node?.nodeType === 1 ? node : node?.parentElement)?.closest?.("#blocks .ed");
-    if (ed) { savedRange = sel.getRangeAt(0).cloneRange(); syncPressed(); }
-  });
+  // ── Active block / editor bookkeeping ─────────────────────────────────────
+  // Tiptap keeps its selection in editor state even while the toolbar has
+  // focus, so `chain().focus()` restores it — no manual Range juggling.
   const activeBlock = () => (state.activeBlock && state.blocks.includes(state.activeBlock) ? state.activeBlock : null);
-  const blockNode = (b) => $("blocks").querySelector(`.blk[data-id="${CSS.escape(b.id)}"]`);
-  const edOf = (b) => blockNode(b)?.querySelector(".ed");
-
-  function restoreSelection() {
-    if (!savedRange || !document.contains(savedRange.startContainer)) return null;
-    const ed = (savedRange.startContainer.nodeType === 1 ? savedRange.startContainer : savedRange.startContainer.parentElement).closest(".ed");
-    if (!ed) return null;
-    ed.focus({ preventScroll: true });
-    const sel = getSelection();
-    sel.removeAllRanges();
-    sel.addRange(savedRange);
-    return ed;
-  }
-  const hasSelection = () => savedRange && !savedRange.collapsed && document.contains(savedRange.startContainer);
+  const activeEditor = () => {
+    const e = state.activeEditor;
+    return e && !e.isDestroyed && activeBlock() && blockElOf(activeBlock())?.contains(e.view.dom) ? e : null;
+  };
+  const hasSelection = () => !!activeEditor() && !activeEditor().state.selection.empty;
+  document.addEventListener("kinynx:selection", () => syncPressed());
 
   // Save whatever is being typed in a block before changing it structurally.
   async function flush(b) {
-    const ed = b && edOf(b);
-    if (ed && ed.classList.contains("cell")) ed.blur();
-    else if (ed) await saveEd(b, ed);
+    const cell = b && blockElOf(b)?.querySelector(".cell:focus");
+    if (cell) cell.blur();
+    else if (b) await saveBlock(b);
   }
 
-  function inline(cmd, value) {
-    const ed = restoreSelection();
-    if (!ed) { toast("Select some text in a block first"); return false; }
-    if (ed.contentEditable !== "true" || ed.classList.contains("cell")) { toast("This block is plain text"); return false; }
-    document.execCommand("styleWithCSS", false, true);
-    document.execCommand(cmd, false, value);
-    savedRange = getSelection().rangeCount ? getSelection().getRangeAt(0).cloneRange() : null;
+  /** Run a Tiptap command chain on the focused block, e.g. inline((c) => c.toggleBold()). */
+  function inline(fn) {
+    const editor = activeEditor();
+    if (!editor) { toast(activeBlock() ? "This block is plain text" : "Click into a text block first"); return false; }
+    const ok = fn(editor.chain().focus()).run();
     syncPressed();
-    return true;
+    return ok;
   }
 
   // Style changes read-modify-write a block, so run them one at a time:
@@ -69,7 +53,7 @@
     if (Object.keys(style).length) content.style = style; else delete content.style;
     await patchBlock(b, { content });
     refreshBlock(b);
-    edOf(b)?.focus({ preventScroll: true });
+    focusBlock(b);
   }
 
   async function turnInto(type, extra = {}) {
@@ -81,7 +65,7 @@
     if (type === "checklist") content.checked = !!c.checked;
     await patchBlock(b, { type, content });
     renderBlocks();
-    edOf(b)?.focus({ preventScroll: true });
+    focusBlock(b);
   }
 
   async function insert(type, content = {}) {
@@ -96,14 +80,14 @@
   const COLORS = ["#e7e9f0", "#9aa0b4", "#f87171", "#fb923c", "#facc15", "#34d399", "#22d3ee", "#60a5fa", "#a78bfa", "#f472b6", "#1d1f27"];
   const TOOLS = [
     // Basic
-    { id: "undo", group: "History", tier: "basic", icon: "↶", label: "Undo", keys: "Ctrl+Z", run: () => inline("undo") },
-    { id: "redo", group: "History", tier: "basic", icon: "↷", label: "Redo", keys: "Ctrl+Y", run: () => inline("redo") },
+    { id: "undo", group: "History", tier: "basic", icon: "↶", label: "Undo", keys: "Ctrl+Z", run: () => inline((c) => c.undo()) },
+    { id: "redo", group: "History", tier: "basic", icon: "↷", label: "Redo", keys: "Ctrl+Y", run: () => inline((c) => c.redo()) },
     { id: "style", group: "Text", tier: "basic", kind: "style", label: "Paragraph style", desc: "Text, headings, quote, lists, code…" },
-    { id: "bold", group: "Text", tier: "basic", icon: "B", css: "font-weight:800", label: "Bold", keys: "Ctrl+B", cmd: "bold", run: () => inline("bold") },
-    { id: "italic", group: "Text", tier: "basic", icon: "I", css: "font-style:italic", label: "Italic", keys: "Ctrl+I", cmd: "italic", run: () => inline("italic") },
-    { id: "underline", group: "Text", tier: "basic", icon: "U", css: "text-decoration:underline", label: "Underline", keys: "Ctrl+U", cmd: "underline", run: () => inline("underline") },
+    { id: "bold", group: "Text", tier: "basic", icon: "B", css: "font-weight:800", label: "Bold", keys: "Ctrl+B", mark: "bold", run: () => inline((c) => c.toggleBold()) },
+    { id: "italic", group: "Text", tier: "basic", icon: "I", css: "font-style:italic", label: "Italic", keys: "Ctrl+I", mark: "italic", run: () => inline((c) => c.toggleItalic()) },
+    { id: "underline", group: "Text", tier: "basic", icon: "U", css: "text-decoration:underline", label: "Underline", keys: "Ctrl+U", mark: "underline", run: () => inline((c) => c.toggleUnderline()) },
     { id: "color", group: "Text", tier: "basic", kind: "color", icon: "A", label: "Text colour", desc: "Colours the selection, or the whole block if nothing is selected",
-      apply: (v) => (hasSelection() && v ? inline("foreColor", v) : blockStyle({ color: v })) },
+      apply: (v) => (hasSelection() ? inline((c) => (v ? c.setColor(v) : c.unsetColor())) : blockStyle({ color: v })) },
     { id: "alignLeft", group: "Paragraph", tier: "basic", icon: "⇤", label: "Align left", align: "left", run: () => align("left") },
     { id: "alignCenter", group: "Paragraph", tier: "basic", icon: "↔", label: "Center", keys: "Ctrl+E", align: "center", run: () => align("center") },
     { id: "alignRight", group: "Paragraph", tier: "basic", icon: "⇥", label: "Align right", align: "right", run: () => align("right") },
@@ -114,14 +98,14 @@
     { id: "link", group: "Insert", tier: "basic", icon: "🔗", label: "Link", keys: "Ctrl+K", run: () => addLink() },
     { id: "sign", group: "Insert", tier: "basic", icon: "✍", label: "Sign", desc: "Draw or type a signature; signer and time are stamped by the server", run: () => openInkPad("signature") },
     // Advanced
-    { id: "strike", group: "Text", tier: "advanced", icon: "S", css: "text-decoration:line-through", label: "Strikethrough", cmd: "strikeThrough", run: () => inline("strikeThrough") },
-    { id: "highlight", group: "Text", tier: "advanced", kind: "color", icon: "🖍", label: "Highlight", value: "#facc15", apply: (v) => inline("hiliteColor", v || "transparent") },
+    { id: "strike", group: "Text", tier: "advanced", icon: "S", css: "text-decoration:line-through", label: "Strikethrough", mark: "strike", run: () => inline((c) => c.toggleStrike()) },
+    { id: "highlight", group: "Text", tier: "advanced", kind: "color", icon: "🖍", label: "Highlight", value: "#facc15", mark: "highlight", apply: (v) => inline((c) => (v ? c.setHighlight({ color: v }) : c.unsetHighlight())) },
     { id: "font", group: "Text", tier: "advanced", kind: "select", label: "Font", options: [["", "Font"], ["sans", "Sans"], ["serif", "Serif"], ["mono", "Mono"], ["rounded", "Rounded"], ["hand", "Handwriting"]],
-      apply: (v) => v && (hasSelection() ? inline("fontName", R.FONTS[v]) : blockStyle({ font: v })) },
+      apply: (v) => v && (hasSelection() ? inline((c) => c.setFontFamily(R.FONTS[v])) : blockStyle({ font: v })) },
     { id: "size", group: "Text", tier: "advanced", kind: "select", label: "Size", options: [["", "Size"], ["12px", "12"], ["14px", "14"], ["16px", "16"], ["18px", "18"], ["22px", "22"], ["28px", "28"], ["36px", "36"], ["48px", "48"]],
-      apply: (v) => v && (hasSelection() ? inline("fontSize", { "12px": 1, "14px": 2, "16px": 3, "18px": 4, "22px": 5, "28px": 6, "36px": 7, "48px": 7 }[v]) : blockStyle({ size: v })) },
-    { id: "sup", group: "Text", tier: "advanced", icon: "x²", label: "Superscript", cmd: "superscript", run: () => inline("superscript") },
-    { id: "sub", group: "Text", tier: "advanced", icon: "x₂", label: "Subscript", cmd: "subscript", run: () => inline("subscript") },
+      apply: (v) => v && (hasSelection() ? inline((c) => c.setFontSize(v)) : blockStyle({ size: v })) },
+    { id: "sup", group: "Text", tier: "advanced", icon: "x²", label: "Superscript", mark: "superscript", run: () => inline((c) => c.toggleSuperscript()) },
+    { id: "sub", group: "Text", tier: "advanced", icon: "x₂", label: "Subscript", mark: "subscript", run: () => inline((c) => c.toggleSubscript()) },
     { id: "clear", group: "Text", tier: "advanced", icon: "⌫", label: "Clear formatting", desc: "Removes inline formatting from the selection, or all styling from the block", run: () => clearFormatting() },
     { id: "justify", group: "Paragraph", tier: "advanced", icon: "☰", label: "Justify", align: "justify", run: () => align("justify") },
     { id: "outdent", group: "Paragraph", tier: "advanced", icon: "⇠", label: "Decrease indent", run: () => indent(-1) },
@@ -252,21 +236,11 @@
     for (const t of TOOLS) {
       const el = controls.get(t.id);
       if (!el) continue;
-      if (t.cmd) { let on = false; try { on = document.queryCommandState(t.cmd); } catch {} el.setAttribute("aria-pressed", String(on)); }
+      if (t.mark) el.setAttribute("aria-pressed", String(!!activeEditor()?.isActive(t.mark)));
       if (t.align) el.setAttribute("aria-pressed", String((activeBlock()?.content?.style?.align || "left") === t.align));
     }
   }
   $("blocks").addEventListener("focusin", syncPressed);
-
-  // Autosave while typing (also lets collaborators see edits sooner).
-  let saveTimer = null;
-  $("blocks").addEventListener("input", (e) => {
-    const ed = e.target.closest?.(".ed");
-    const b = activeBlock();
-    if (!ed || ed.classList.contains("cell") || !b) return;
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => { if (document.contains(ed)) saveEd(b, ed); }, 1200);
-  });
 
   // ── Tool implementations ──────────────────────────────────────────────────
   async function align(v) {
@@ -294,12 +268,15 @@
     await insert("table", { rows: Array.from({ length: rows }, () => Array(cols).fill("")), header: true });
   }
   async function addLink() {
-    const range = hasSelection() ? savedRange.cloneRange() : null;
-    const raw = await promptText("Insert link", "https:// address", "", { maxlength: 2000 });
+    const editor = hasSelection() ? activeEditor() : null;
+    const current = editor?.getAttributes("link").href || "";
+    const raw = await promptText("Insert link", "https:// address", current, { maxlength: 2000 });
+    if (editor && raw === null) return;
+    if (editor && !raw) { inline((c) => c.extendMarkRange("link").unsetLink()); return; }
     if (!raw) return;
     const url = R.safeUrl(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
     if (!url) { toast("Enter an http(s) URL"); return; }
-    if (range) { savedRange = range; inline("createLink", url); }
+    if (editor) inline((c) => c.extendMarkRange("link").setLink({ href: url }));
     else await insert("embed", { url, text: url });
   }
   async function insertImage() {
@@ -310,7 +287,7 @@
     await insert("image", { url, text: "" });
   }
   async function clearFormatting() {
-    if (hasSelection()) { inline("removeFormat"); inline("unlink"); return; }
+    if (hasSelection()) { inline((c) => c.unsetAllMarks()); return; }
     const b = activeBlock();
     if (!b) { toast("Click into a block first"); return; }
     const content = { ...b.content };
@@ -436,7 +413,7 @@
   }
 
   function shortcuts() {
-    const rows = [["Bold / Italic / Underline", "Ctrl+B / I / U"], ["Center block", "Ctrl+E"], ["Link", "Ctrl+K"], ["Find & replace", "Ctrl+H"],
+    const rows = [["Undo / Redo (per block)", "Ctrl+Z / Ctrl+Shift+Z"], ["Bold / Italic / Underline", "Ctrl+B / I / U"], ["Strikethrough", "Ctrl+Shift+S"], ["Highlight", "Ctrl+Shift+H"], ["Center block", "Ctrl+E"], ["Link", "Ctrl+K"], ["Find & replace", "Ctrl+H"],
       ["New block (same list type)", "Enter"], ["Line break inside a block", "Shift+Enter"], ["End a list", "Enter on an empty item"],
       ["Delete empty block", "Backspace"], ["Move block", "Alt+Shift+↑ / ↓  or drag ⋮⋮"], ["Next / previous table cell", "Tab / Shift+Tab"]];
     dialog("Keyboard shortcuts", h("table", { class: "cat-table" }, h("tbody", {}, rows.map(([a, k]) => h("tr", {}, h("td", {}, a), h("td", {}, h("kbd", {}, k)))))),
@@ -445,7 +422,7 @@
 
   // Shortcuts not handled natively by contentEditable.
   document.addEventListener("keydown", (e) => {
-    if (!(e.ctrlKey || e.metaKey) || e.altKey || !state.pageId || $("dlg").open) return;
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || !state.pageId || $("dlg").open) return;
     const inEd = document.activeElement?.closest?.("#blocks .ed");
     const k = e.key.toLowerCase();
     if (k === "h") { e.preventDefault(); findReplace(); }

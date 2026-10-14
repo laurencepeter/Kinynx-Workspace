@@ -89,6 +89,13 @@
       .blk .body { flex: 1; min-width: 0; padding: 4px 0; }
       .ed { outline: none; white-space: pre-wrap; word-break: break-word; min-height: 1.5em; }
       .ed:empty::before { content: attr(data-ph); color: var(--muted); opacity: .6; }
+      /* Tiptap (ProseMirror) text blocks */
+      .ed-host { display: block; margin: 0; }
+      .ed.ProseMirror p { margin: 0; }
+      .ed.ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--muted); opacity: .6;
+        float: left; height: 0; pointer-events: none; }
+      .ed.ProseMirror a { color: var(--accent-2); }
+      .ed.ProseMirror code { font: 0.9em ui-monospace, Menlo, monospace; background: var(--panel-2); padding: 1px 4px; border-radius: 4px; }
       .blk h1, .blk h2, .blk h3 { margin: 8px 0 2px; line-height: 1.25; }
       .blk h1 { font-size: 26px; } .blk h2 { font-size: 21px; } .blk h3 { font-size: 17px; }
       .blk p { margin: 0; }
@@ -293,6 +300,7 @@
     </div>
     <dialog id="dlg"></dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/vendor/kinynx-tiptap.js"></script>
     <script src="/render.js"></script>
     <script src="/app.js"></script>
     <script src="/editor.js"></script>

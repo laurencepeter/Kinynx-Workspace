@@ -29,6 +29,18 @@ pnpm --filter @kinynx/api run dev        # http://localhost:4000  (tsx watch)
 The web reference client is static — serve `apps/web` with any static server, or
 just use the full `docker compose up -d` stack (recommended).
 
+Text blocks are edited with [Tiptap](https://tiptap.dev) v3 (ProseMirror, MIT),
+bundled by `apps/web-editor` into `apps/web/vendor/kinynx-tiptap.js` (git-ignored;
+no CDN, so the CSP stays `script-src 'self'`). Build it once before serving
+`apps/web` yourself:
+
+```bash
+pnpm --filter @kinynx/web-editor run build   # or: pnpm -r run build
+```
+
+The Docker web image builds it automatically. Without the bundle, text blocks
+fall back to plain-text editing.
+
 ## Monorepo scripts (root)
 
 | Command | Effect |

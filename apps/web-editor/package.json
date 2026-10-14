@@ -1,0 +1,31 @@
+{
+  "name": "@kinynx/web-editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rich-text engine for the reference web client: Tiptap (ProseMirror) bundled into apps/web/vendor/ so the static client needs no CDN (CSP script-src 'self').",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.js --bundle --format=iife --global-name=KinynxTiptap --target=es2022 --minify --legal-comments=linked --outfile=../web/vendor/kinynx-tiptap.js",
+    "typecheck": "node --check src/index.js"
+  },
+  "devDependencies": {
+    "@tiptap/core": "^3.32.0",
+    "@tiptap/extension-bold": "^3.32.0",
+    "@tiptap/extension-document": "^3.32.0",
+    "@tiptap/extension-hard-break": "^3.32.0",
+    "@tiptap/extension-highlight": "^3.32.0",
+    "@tiptap/extension-italic": "^3.32.0",
+    "@tiptap/extension-link": "^3.32.0",
+    "@tiptap/extension-paragraph": "^3.32.0",
+    "@tiptap/extension-strike": "^3.32.0",
+    "@tiptap/extension-subscript": "^3.32.0",
+    "@tiptap/extension-superscript": "^3.32.0",
+    "@tiptap/extension-text": "^3.32.0",
+    "@tiptap/extension-text-style": "^3.32.0",
+    "@tiptap/extension-underline": "^3.32.0",
+    "@tiptap/extensions": "^3.32.0",
+    "@tiptap/pm": "^3.32.0",
+    "esbuild": "^0.28.2"
+  }
+}

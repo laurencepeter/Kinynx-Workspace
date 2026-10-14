@@ -464,20 +464,41 @@ const CONTINUES = new Set(["checklist", "bulleted_list", "numbered_list"]);
 const TYPE_LABEL = { paragraph: "text", heading: "heading", checklist: "checklist", quote: "quote", code: "code",
   bulleted_list: "bulleted list", numbered_list: "numbered list", callout: "callout" };
 
+// Tiptap editors attach themselves to their DOM node as `.editor`; destroy
+// them whenever their block is re-rendered so listeners don't leak.
+const editorOf = (el) => (el?.editor && !el.editor.isDestroyed ? el.editor : null);
+function destroyEditors(root) {
+  root.querySelectorAll(".ed").forEach((el) => editorOf(el)?.destroy());
+}
+const blockElOf = (b) => $("blocks").querySelector(`.blk[data-id="${CSS.escape(b.id)}"]`);
+
+/** Focus a block's editor; `pos` is "start" | "end" (Tiptap) or ignored for plain fields. */
+function focusBlock(b, pos = "end") {
+  const ed = blockElOf(b)?.querySelector(".ed");
+  if (!ed) return;
+  const editor = editorOf(ed);
+  if (editor) editor.commands.focus(pos);
+  else ed.focus();
+}
+
 function renderBlocks(keepFocus) {
   const wrap = $("blocks");
   const focusedId = keepFocus ? document.activeElement?.closest?.(".blk")?.dataset.id : null;
+  destroyEditors(wrap);
   const nums = R.listNumbers(state.blocks);
   wrap.replaceChildren(...state.blocks.map((b) => blockEl(b, nums.get(b))));
   if (!state.blocks.length) wrap.append(h("p", { class: "muted small", style: "margin:6px 10px" }, "Empty page. Add your first block below ↓"));
   applyAuthorsToggle();
-  if (focusedId) wrap.querySelector(`.blk[data-id="${CSS.escape(focusedId)}"] .ed`)?.focus();
+  const fb = focusedId && state.blocks.find((x) => x.id === focusedId);
+  if (fb) focusBlock(fb);
 }
 
 // Re-render one block in place (style/format changes) without losing others' focus.
 function refreshBlock(b) {
-  const old = $("blocks").querySelector(`.blk[data-id="${CSS.escape(b.id)}"]`);
-  if (old) old.replaceWith(blockEl(b, R.listNumbers(state.blocks).get(b)));
+  const old = blockElOf(b);
+  if (!old) return;
+  destroyEditors(old);
+  old.replaceWith(blockEl(b, R.listNumbers(state.blocks).get(b)));
 }
 
 function blockEl(b, n) {
@@ -495,21 +516,67 @@ function blockEl(b, n) {
   return el;
 }
 
+// Text blocks are edited with Tiptap (ProseMirror, vendor/kinynx-tiptap.js):
+// formatting is schema-checked by the editor, then re-sanitised on save and on
+// every render. Code blocks (and table cells) are native plain-text fields.
+const TT = window.KinynxTiptap;
+if (!TT) console.warn("[kinynx] vendor/kinynx-tiptap.js missing — run `pnpm -r run build`; text blocks fall back to plain text.");
+
 function editable(b, tagName, extra = {}) {
-  // Code stays plain text; everything else accepts inline formatting (bold,
-  // colours, fonts…), which is sanitised on save and again on every render.
-  const rich = b.type !== "code";
-  const ed = h(tagName, { class: "ed", contentEditable: rich ? "true" : "plaintext-only", spellcheck: b.type !== "code", "data-ph": PLACEHOLDER[b.type] || "", ...extra });
-  if (!rich && ed.contentEditable !== "plaintext-only") ed.contentEditable = "true"; // Firefox < 136 fallback
-  if (rich) R.fillText(ed, b); else ed.textContent = R.textOf(b);
-  ed.addEventListener("focus", () => { state.activeBlock = b; sendPresence(state.pageId, true); });
-  ed.addEventListener("blur", () => { sendPresence(state.pageId, false); saveEd(b, ed); flushRefresh(); });
-  ed.addEventListener("paste", (e) => { // force plain text
-    e.preventDefault();
-    document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
-  });
-  ed.addEventListener("keydown", (e) => onBlockKey(e, b, ed));
+  if (b.type !== "code" && TT) return richEditable(b, tagName, extra);
+  const ed = h(tagName, { class: "ed", contentEditable: "plaintext-only", spellcheck: b.type !== "code", "data-ph": PLACEHOLDER[b.type] || "", ...extra });
+  ed.textContent = R.textOf(b);
+  ed.addEventListener("focus", () => { state.activeBlock = b; state.activeEditor = null; sendPresence(state.pageId, true); });
+  ed.addEventListener("blur", () => { sendPresence(state.pageId, false); saveBlock(b); flushRefresh(); });
+  ed.addEventListener("keydown", (e) => onPlainKey(e, b, ed));
   return ed;
+}
+
+function richEditable(b, tagName, extra) {
+  const host = h(tagName, { class: "ed-host", ...extra });
+  // Stored rich HTML is untrusted: sanitise before the editor parses it.
+  const editor = TT.createInlineEditor({
+    element: host,
+    html: typeof b.content?.rich === "string" && b.content.rich ? R.cleanRich(b.content.rich) : "",
+    text: R.textOf(b),
+    placeholder: PLACEHOLDER[b.type] || "",
+    className: "ed",
+    onFocus: (e) => { state.activeBlock = b; state.activeEditor = e; sendPresence(state.pageId, true); document.dispatchEvent(new CustomEvent("kinynx:selection")); },
+    onBlur: () => { sendPresence(state.pageId, false); saveBlock(b); flushRefresh(); },
+    onSelection: () => document.dispatchEvent(new CustomEvent("kinynx:selection")),
+    onUpdate: () => { clearTimeout(b._saveTimer); b._saveTimer = setTimeout(() => saveBlock(b), 1200); }, // autosave while typing
+    onEnter: () => onEnter(b),
+    onBackspaceEmpty: () => removeBlock(b, true),
+    onMove: (dir) => saveBlock(b).then(() => moveBlock(b, dir)).then(() => focusBlock(b)),
+  });
+  return editor && host;
+}
+
+// Plain-text fields (code): Alt+Shift+↑/↓ moves, Backspace on empty deletes.
+function onPlainKey(e, b, ed) {
+  if (e.altKey && e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+    e.preventDefault();
+    saveBlock(b).then(() => moveBlock(b, e.key === "ArrowUp" ? -1 : 1)).then(() => focusBlock(b));
+  } else if (e.key === "Backspace" && ed.textContent === "") {
+    e.preventDefault();
+    removeBlock(b, true);
+  }
+}
+
+function onEnter(b) {
+  const editor = editorOf(blockElOf(b)?.querySelector(".ed"));
+  const empty = editor ? editor.isEmpty : false;
+  // An empty list item ends the list (like Word/Docs); otherwise lists continue.
+  if (empty && CONTINUES.has(b.type)) {
+    patchBlock(b, { type: "paragraph", content: { text: "", ...(b.content?.style ? { style: b.content.style } : {}) } })
+      .then(() => { refreshBlock(b); focusBlock(b); });
+    return;
+  }
+  saveBlock(b);
+  // Alignment carries over to the next line; other formatting doesn't.
+  const align = b.content?.style?.align;
+  const content = { text: "", ...(b.type === "checklist" ? { checked: false } : {}), ...(align ? { style: { align } } : {}) };
+  insertBlockAfter(b, CONTINUES.has(b.type) ? b.type : "paragraph", content);
 }
 
 function blockBody(b, n) {
@@ -566,16 +633,17 @@ async function saveText(b, text) {
   await patchBlock(b, { content: { ...b.content, [key]: text } }).catch(() => {});
 }
 
-// Save an editable: plain text always, plus sanitised rich HTML when it
+// Save a block's editor: plain text always, plus sanitised rich HTML when it
 // actually carries formatting (so unformatted blocks stay plain).
-async function saveEd(b, ed) {
-  const text = ed.innerText.replace(/\n$/, "");
-  if (ed.contentEditable !== "true" || b.type === "code") return saveText(b, text);
-  const rich = R.cleanRich(ed.innerHTML);
-  const probe = h("div"); probe.append(R.richFragment(rich));
-  const formatted = !!probe.querySelector(":not(br)");
+async function saveBlock(b) {
+  clearTimeout(b._saveTimer);
+  const ed = blockElOf(b)?.querySelector(".ed:not(.cell)");
+  if (!ed) return;
+  const editor = editorOf(ed);
+  if (!editor) return saveText(b, ed.innerText.replace(/\n$/, ""));
+  const text = editor.getText({ blockSeparator: "\n" });
   const next = { ...b.content, text };
-  if (formatted) next.rich = rich; else delete next.rich;
+  if (TT.hasMarks(editor)) next.rich = R.cleanRich(editor.getHTML()); else delete next.rich;
   if (text === R.textOf(b) && (next.rich || "") === (b.content?.rich || "")) return;
   await patchBlock(b, { content: next }).catch(() => {});
 }
@@ -585,17 +653,16 @@ function tableEditor(b) {
   const rows = R.tableRows(b.content);
   const save = async () => { await patchBlock(b, { content: { ...b.content, rows } }).catch(() => {}); };
   return R.renderTable(b.content || {}, (td, text, ri, ci) => {
+    // plaintext-only: the browser itself strips formatting on paste.
     const ed = h("div", { class: "ed cell", contentEditable: "plaintext-only", "data-ph": "", "aria-label": `Row ${ri + 1}, column ${ci + 1}` });
-    if (ed.contentEditable !== "plaintext-only") ed.contentEditable = "true";
     ed.textContent = text;
-    ed.addEventListener("focus", () => { state.activeBlock = b; state.activeCell = [ri, ci]; sendPresence(state.pageId, true); });
+    ed.addEventListener("focus", () => { state.activeBlock = b; state.activeEditor = null; state.activeCell = [ri, ci]; sendPresence(state.pageId, true); });
     ed.addEventListener("blur", () => {
       sendPresence(state.pageId, false);
       const v = ed.innerText.replace(/\n$/, "");
       if (v !== rows[ri][ci]) { rows[ri][ci] = v; save(); }
       flushRefresh();
     });
-    ed.addEventListener("paste", (e) => { e.preventDefault(); document.execCommand("insertText", false, e.clipboardData.getData("text/plain")); });
     ed.addEventListener("keydown", (e) => {
       if (e.key !== "Tab") return;
       e.preventDefault();
@@ -643,7 +710,7 @@ async function insertBlockAfter(after, type, content = {}) {
   const b = { id: tmpId, type, content, position, created_by_email: state.me?.email, updated_at: new Date().toISOString() };
   state.blocks.splice(idx + 1, 0, b);
   renderBlocks();
-  $("blocks").querySelector(`.blk[data-id="${tmpId}"] .ed`)?.focus();
+  focusBlock(b, "start");
   b._ready = api(`/pages/${state.pageId}/blocks`, { method: "POST", body: { type, content, position } })
     .then(({ block }) => {
       Object.assign(b, block);
@@ -663,42 +730,7 @@ async function removeBlock(b, focusPrev) {
   const idx = state.blocks.indexOf(b);
   state.blocks.splice(idx, 1);
   renderBlocks(); renderMeta();
-  if (focusPrev && idx > 0) {
-    const ed = $("blocks").querySelector(`.blk[data-id="${CSS.escape(state.blocks[idx - 1].id)}"] .ed`);
-    if (ed) { ed.focus(); placeCaretAtEnd(ed); }
-  }
-}
-
-function placeCaretAtEnd(el) {
-  const range = document.createRange();
-  range.selectNodeContents(el); range.collapse(false);
-  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
-}
-
-function onBlockKey(e, b, ed) {
-  if (e.altKey && e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-    e.preventDefault(); // keyboard alternative to drag-and-drop
-    saveEd(b, ed).then(() => moveBlock(b, e.key === "ArrowUp" ? -1 : 1)).then(() => {
-      $("blocks").querySelector(`.blk[data-id="${CSS.escape(b.id)}"] .ed`)?.focus();
-    });
-  } else if (e.key === "Enter" && !e.shiftKey && b.type !== "code") {
-    e.preventDefault();
-    const empty = ed.innerText.trim() === "";
-    // An empty list item ends the list (like Word/Docs); otherwise lists continue.
-    if (empty && CONTINUES.has(b.type)) {
-      patchBlock(b, { type: "paragraph", content: { text: "", style: b.content?.style } }).then(() => { refreshBlock(b); $("blocks").querySelector(`.blk[data-id="${CSS.escape(b.id)}"] .ed`)?.focus(); });
-      return;
-    }
-    saveEd(b, ed);
-    const cont = CONTINUES.has(b.type);
-    // Alignment carries over to the next line; other formatting doesn't.
-    const align = b.content?.style?.align;
-    const content = { text: "", ...(b.type === "checklist" ? { checked: false } : {}), ...(align ? { style: { align } } : {}) };
-    insertBlockAfter(b, cont ? b.type : "paragraph", content);
-  } else if (e.key === "Backspace" && ed.innerText.trim() === "" && b.type !== "code") {
-    e.preventDefault();
-    removeBlock(b, true);
-  }
+  if (focusPrev && idx > 0) focusBlock(state.blocks[idx - 1], "end");
 }
 
 async function moveBlock(b, dir) {

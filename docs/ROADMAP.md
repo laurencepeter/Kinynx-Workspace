@@ -35,6 +35,7 @@ comments, realtime); the gap was mostly the web client. Tick items as they land.
 - [x] **Formatting toolbar** with three levels — Basic → Advanced → Expert (remembered per browser)
 - [x] **🧰 All tools** catalog: every tool, its level, shortcut and plan (all editor tools are free)
 - [x] Inline formatting: bold, italic, underline, strikethrough, highlight, text colour, font, size, super/subscript, links, clear formatting
+      — powered by **Tiptap v3 / ProseMirror** (schema-checked; no deprecated `document.execCommand`)
 - [x] Block formatting: align left/center/right/justify, indent, line spacing, background, borders/outlines (style, colour, width, corners, padding), format painter
 - [x] **Tables**: insert any size, Tab between cells, add/delete rows & columns, header row, stripes, border style/colour, header colour, column alignment
 - [x] Bulleted & numbered lists, callouts; Enter continues a list, Enter on an empty item ends it
