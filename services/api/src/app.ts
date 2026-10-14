@@ -65,7 +65,17 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   app.decorate("config", config);
   app.decorate("entitlements", resolveEntitlements(config));
   app.decorate("email", createEmailProvider(config));
-  app.decorate("storage", await createStorageDriver(config));
+  const storage = await createStorageDriver(config);
+  app.decorate("storage", storage);
+  // Self-provision the object-storage bucket (idempotent; no-op for stores
+  // where it already exists or the credentials cannot create it).
+  if (storage.ensureBucket) {
+    try {
+      await storage.ensureBucket();
+    } catch (err) {
+      app.log.warn(`[storage] could not ensure bucket "${config.S3_BUCKET}": ${(err as Error).message}`);
+    }
+  }
   app.decorate("ai", createAIProvider(config));
   app.decorate("billing", createBillingProvider(config));
   const bus = await createRealtimeBus(config.REDIS_URL);
