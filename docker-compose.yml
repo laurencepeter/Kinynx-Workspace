@@ -110,19 +110,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Static client (docs/board/admin) baked into the image — no host bind
+  # mount, so it is portable to Coolify and other git-deploy platforms.
   web:
-    image: nginx:alpine
-    volumes:
-      - ./apps/web:/usr/share/nginx/html:ro
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
     restart: unless-stopped
 
+  # Reverse proxy with the Caddyfile baked in (see caddy.Dockerfile).
   caddy:
-    image: caddy:2-alpine
+    build:
+      context: .
+      dockerfile: infrastructure/docker/caddy.Dockerfile
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./infrastructure/docker/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data
       - caddyconfig:/config
     depends_on:
