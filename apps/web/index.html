@@ -4,6 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Kinynx</title>
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0e0f13" />
     <style>
       :root {
         --bg: #0e0f13; --panel: #171922; --panel-2: #1e2130; --border: #2a2e3f;
@@ -21,9 +26,8 @@
         border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(14,15,19,.8);
         backdrop-filter: blur(8px); z-index: 5;
       }
-      .logo { font-weight: 800; letter-spacing: .5px; font-size: 18px;
-        background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text;
-        background-clip: text; color: transparent; }
+      .logo { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: -.01em;
+        font-size: 18px; color: var(--text); }
       .badge { font-size: 11px; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px;
         color: var(--muted); }
       .spacer { flex: 1; }
@@ -66,7 +70,7 @@
   </head>
   <body>
     <header>
-      <span class="logo">◆ Kinynx</span>
+      <span class="logo"><img src="/icon.svg" alt="" width="22" height="22" />Kinynx</span>
       <span class="badge" id="edition">Community</span>
       <span class="spacer"></span>
       <span class="small" id="presence"></span>

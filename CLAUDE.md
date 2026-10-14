@@ -9,6 +9,7 @@ Open-source, self-hostable collaborative workspace. pnpm monorepo.
 - `enterprise/*` — commercially-licensed modules (directory-discovery, directory-sync); **never imported by core**
 - `apps/web` — reference clients: `index.html` (docs), `board.html` (Kanban), `admin.html`
 - `infrastructure/docker` — Dockerfile + Caddyfile; `docker-compose.yml` at root
+- `brand/` — logo, iOS/Android/web app icons, motion tokens; all generated from `brand/src/geometry.mjs` (`cd brand && npm run build`), outside the pnpm workspace
 - `docs/` — ARCHITECTURE, API, DATABASE, PERMISSIONS, LICENSING, TEMPLATE_SPEC, AUDIT, …
 
 ## Commands

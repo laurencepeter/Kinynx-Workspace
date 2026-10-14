@@ -1,0 +1,22 @@
+/* Kinynx motion tokens. Animate transform and opacity only. */
+:root {
+  --motion-fast: 120ms;   /* press, hover */
+  --motion-base: 240ms;   /* tabs, toggles, fade-through */
+  --motion-enter: 300ms;  /* push, sheet in */
+  --motion-exit: 200ms;   /* dismiss, back */
+  --motion-spring: 420ms; /* logo, FAB */
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-enter: 150ms;
+    --motion-exit: 150ms;
+    --motion-spring: 150ms;
+    --ease-spring: linear;
+  }
+}
