@@ -1,0 +1,13 @@
+# Local / standalone self-hosting overrides.
+#
+# Docker Compose auto-loads this file for a bare `docker compose up` (no -f),
+# so plain self-hosting still serves the stack on http://localhost. Managed
+# platforms such as Coolify invoke compose with an explicit `-f
+# docker-compose.yml`, which disables override auto-loading — there the base
+# file's internal-only Caddy (no host ports) is used and the platform's own
+# ingress proxy routes 80/443 to it.
+services:
+  caddy:
+    ports:
+      - "80:80"
+      - "443:443"

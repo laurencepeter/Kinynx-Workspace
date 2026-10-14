@@ -119,13 +119,18 @@ services:
     restart: unless-stopped
 
   # Reverse proxy with the Caddyfile baked in (see caddy.Dockerfile).
+  #
+  # Host ports are NOT published here: on a managed platform (Coolify, etc.)
+  # the platform's own ingress proxy owns host 80/443 and routes to this
+  # container over the shared network, so publishing them ourselves collides
+  # ("port is already allocated"). For plain `docker compose up` self-hosting,
+  # docker-compose.override.yml publishes 80/443 so http://localhost works.
   caddy:
     build:
       context: .
       dockerfile: infrastructure/docker/caddy.Dockerfile
-    ports:
-      - "80:80"
-      - "443:443"
+    expose:
+      - "80"
     volumes:
       - caddydata:/data
       - caddyconfig:/config
