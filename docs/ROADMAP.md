@@ -30,6 +30,19 @@ comments, realtime); the gap was mostly the web client. Tick items as they land.
 - [x] Web security headers (CSP, nosniff, no-referrer, frame-ancestors none)
 - [x] Worker container healthcheck (was always "unhealthy")
 
+## Phase 1.5 — Office-style editor ✅
+
+- [x] **Formatting toolbar** with three levels — Basic → Advanced → Expert (remembered per browser)
+- [x] **🧰 All tools** catalog: every tool, its level, shortcut and plan (all editor tools are free)
+- [x] Inline formatting: bold, italic, underline, strikethrough, highlight, text colour, font, size, super/subscript, links, clear formatting
+- [x] Block formatting: align left/center/right/justify, indent, line spacing, background, borders/outlines (style, colour, width, corners, padding), format painter
+- [x] **Tables**: insert any size, Tab between cells, add/delete rows & columns, header row, stripes, border style/colour, header colour, column alignment
+- [x] Bulleted & numbered lists, callouts; Enter continues a list, Enter on an empty item ends it
+- [x] **Drag & drop** block reordering (mouse, touch, pen) + Alt+Shift+↑/↓
+- [x] **Sign**: draw or type a signature; signer + time stamped server-side. Freehand **drawing** blocks (vector)
+- [x] Find & replace (keeps formatting), word count, keyboard shortcut sheet
+- [x] Markdown import/export for tables and lists; HTML/PDF export keeps formatting
+
 ## Phase 2 — Collaboration depth
 
 - [ ] Email confirmation on sign-up (`email_verified_at`, verify link via the email driver — Mailjet supported: `EMAIL_DRIVER=mailjet`)

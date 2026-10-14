@@ -456,38 +456,54 @@ async function normalizePositions() {
 }
 
 // ── Blocks: inline, editable rendering ───────────────────────────────────────
-const TEXT_TYPES = new Set(["paragraph", "heading", "checklist", "quote", "code"]);
-const PLACEHOLDER = { paragraph: "Type something…", heading: "Heading", checklist: "To-do", quote: "Quote", code: "Code" };
+const TEXT_TYPES = new Set(["paragraph", "heading", "checklist", "quote", "code", "bulleted_list", "numbered_list", "callout"]);
+const PLACEHOLDER = { paragraph: "Type something…", heading: "Heading", checklist: "To-do", quote: "Quote", code: "Code",
+  bulleted_list: "List item", numbered_list: "List item", callout: "Callout" };
+// Blocks whose Enter continues the same type (lists); everything else → paragraph.
+const CONTINUES = new Set(["checklist", "bulleted_list", "numbered_list"]);
+const TYPE_LABEL = { paragraph: "text", heading: "heading", checklist: "checklist", quote: "quote", code: "code",
+  bulleted_list: "bulleted list", numbered_list: "numbered list", callout: "callout" };
 
 function renderBlocks(keepFocus) {
   const wrap = $("blocks");
   const focusedId = keepFocus ? document.activeElement?.closest?.(".blk")?.dataset.id : null;
-  wrap.replaceChildren(...state.blocks.map(blockEl));
+  const nums = R.listNumbers(state.blocks);
+  wrap.replaceChildren(...state.blocks.map((b) => blockEl(b, nums.get(b))));
   if (!state.blocks.length) wrap.append(h("p", { class: "muted small", style: "margin:6px 10px" }, "Empty page. Add your first block below ↓"));
   applyAuthorsToggle();
   if (focusedId) wrap.querySelector(`.blk[data-id="${CSS.escape(focusedId)}"] .ed`)?.focus();
 }
 
-function blockEl(b) {
+// Re-render one block in place (style/format changes) without losing others' focus.
+function refreshBlock(b) {
+  const old = $("blocks").querySelector(`.blk[data-id="${CSS.escape(b.id)}"]`);
+  if (old) old.replaceWith(blockEl(b, R.listNumbers(state.blocks).get(b)));
+}
+
+function blockEl(b, n) {
   const author = b.created_by_email;
   const tag = author
     ? `Added by ${author}${b.updated_by_email && b.updated_by_email !== author ? ` · edited by ${b.updated_by_email}` : ""} · ${ago(b.updated_at)}`
     : "Author unknown";
   const el = h("div", { class: "blk", "data-id": b.id, style: `--author:${author ? R.colorFor(author) : "transparent"}`, title: "" });
   const tools = h("div", { class: "tools" },
-    h("button", { class: "icon", title: "Block options", "aria-label": "Block options", onclick: (e) => blockMenu(e.currentTarget, b) }, "⋮⋮"));
-  const body = h("div", { class: "body" }, blockBody(b));
+    h("button", { class: "icon handle", title: "Drag to move · click for options", "aria-label": "Block options (drag to reorder)",
+      onclick: (e) => blockMenu(e.currentTarget, b) }, "⋮⋮"));
+  const body = R.applyStyle(h("div", { class: "body" }, blockBody(b, n)), b.content?.style);
   const who = h("span", { class: "author-tag", title: tag }, author ? h("span", { class: "dot", style: `background:${R.colorFor(author)}` }) : null, " ", author ? short(author) : "");
   el.append(tools, body, who);
   return el;
 }
 
 function editable(b, tagName, extra = {}) {
-  const ed = h(tagName, { class: "ed", contentEditable: "plaintext-only", spellcheck: b.type !== "code", "data-ph": PLACEHOLDER[b.type] || "", ...extra });
-  if (ed.contentEditable !== "plaintext-only") ed.contentEditable = "true"; // Firefox < 136 fallback
-  ed.textContent = R.textOf(b);
-  ed.addEventListener("focus", () => sendPresence(state.pageId, true));
-  ed.addEventListener("blur", () => { sendPresence(state.pageId, false); saveText(b, ed.innerText.replace(/\n$/, "")); flushRefresh(); });
+  // Code stays plain text; everything else accepts inline formatting (bold,
+  // colours, fonts…), which is sanitised on save and again on every render.
+  const rich = b.type !== "code";
+  const ed = h(tagName, { class: "ed", contentEditable: rich ? "true" : "plaintext-only", spellcheck: b.type !== "code", "data-ph": PLACEHOLDER[b.type] || "", ...extra });
+  if (!rich && ed.contentEditable !== "plaintext-only") ed.contentEditable = "true"; // Firefox < 136 fallback
+  if (rich) R.fillText(ed, b); else ed.textContent = R.textOf(b);
+  ed.addEventListener("focus", () => { state.activeBlock = b; sendPresence(state.pageId, true); });
+  ed.addEventListener("blur", () => { sendPresence(state.pageId, false); saveEd(b, ed); flushRefresh(); });
   ed.addEventListener("paste", (e) => { // force plain text
     e.preventDefault();
     document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
@@ -496,9 +512,28 @@ function editable(b, tagName, extra = {}) {
   return ed;
 }
 
-function blockBody(b) {
+function blockBody(b, n) {
   const c = b.content || {};
   switch (b.type) {
+    case "bulleted_list":
+    case "numbered_list":
+      return h("div", { class: "k-li" }, h("span", { class: "k-mark" }, b.type === "numbered_list" ? `${n || 1}.` : "•"), editable(b, "div", { style: "flex:1;min-width:0" }));
+    case "callout":
+      return h("div", { class: "k-callout" },
+        h("button", { class: "icon", style: "padding:0;font-size:18px", title: "Change icon", onclick: async () => {
+          const icon = await promptText("Callout icon", "Paste an emoji", c.icon || "💡", { maxlength: 8 });
+          if (icon) { await patchBlock(b, { content: { ...b.content, icon } }); refreshBlock(b); }
+        } }, typeof c.icon === "string" ? c.icon : "💡"),
+        editable(b, "div", { style: "flex:1;min-width:0" }));
+    case "table": return tableEditor(b);
+    case "signature":
+    case "drawing": {
+      const fig = R.renderSignature(b);
+      fig.title = "Click to redraw";
+      fig.style.cursor = "pointer";
+      fig.onclick = () => window.KinynxEditor?.openInkPad(b.type, b);
+      return fig;
+    }
     case "heading": return editable(b, `h${Math.min(3, Math.max(1, Number(c.level) || 2))}`);
     case "paragraph": return editable(b, "p");
     case "quote": return h("blockquote", {}, editable(b, "div"));
@@ -529,6 +564,71 @@ async function saveText(b, text) {
   if (text === R.textOf(b)) return;
   const key = b.type === "code" && b.content?.code !== undefined ? "code" : "text";
   await patchBlock(b, { content: { ...b.content, [key]: text } }).catch(() => {});
+}
+
+// Save an editable: plain text always, plus sanitised rich HTML when it
+// actually carries formatting (so unformatted blocks stay plain).
+async function saveEd(b, ed) {
+  const text = ed.innerText.replace(/\n$/, "");
+  if (ed.contentEditable !== "true" || b.type === "code") return saveText(b, text);
+  const rich = R.cleanRich(ed.innerHTML);
+  const probe = h("div"); probe.append(R.richFragment(rich));
+  const formatted = !!probe.querySelector(":not(br)");
+  const next = { ...b.content, text };
+  if (formatted) next.rich = rich; else delete next.rich;
+  if (text === R.textOf(b) && (next.rich || "") === (b.content?.rich || "")) return;
+  await patchBlock(b, { content: next }).catch(() => {});
+}
+
+// ── Tables: editable cells; Tab/Shift+Tab move, Tab on the last cell adds a row
+function tableEditor(b) {
+  const rows = R.tableRows(b.content);
+  const save = async () => { await patchBlock(b, { content: { ...b.content, rows } }).catch(() => {}); };
+  return R.renderTable(b.content || {}, (td, text, ri, ci) => {
+    const ed = h("div", { class: "ed cell", contentEditable: "plaintext-only", "data-ph": "", "aria-label": `Row ${ri + 1}, column ${ci + 1}` });
+    if (ed.contentEditable !== "plaintext-only") ed.contentEditable = "true";
+    ed.textContent = text;
+    ed.addEventListener("focus", () => { state.activeBlock = b; state.activeCell = [ri, ci]; sendPresence(state.pageId, true); });
+    ed.addEventListener("blur", () => {
+      sendPresence(state.pageId, false);
+      const v = ed.innerText.replace(/\n$/, "");
+      if (v !== rows[ri][ci]) { rows[ri][ci] = v; save(); }
+      flushRefresh();
+    });
+    ed.addEventListener("paste", (e) => { e.preventDefault(); document.execCommand("insertText", false, e.clipboardData.getData("text/plain")); });
+    ed.addEventListener("keydown", (e) => {
+      if (e.key !== "Tab") return;
+      e.preventDefault();
+      const cells = [...ed.closest("table").querySelectorAll(".cell")];
+      const i = cells.indexOf(ed) + (e.shiftKey ? -1 : 1);
+      if (i >= 0 && i < cells.length) cells[i].focus();
+      else if (!e.shiftKey) { ed.blur(); tableOp(b, "addRow"); }
+    });
+    td.append(ed);
+  });
+}
+
+async function tableOp(b, op, arg) {
+  const c = { ...b.content };
+  const rows = R.tableRows(c);
+  const [r, col] = state.activeBlock === b && state.activeCell ? state.activeCell : [rows.length - 1, rows[0].length - 1];
+  const cols = rows[0].length;
+  switch (op) {
+    case "addRow": if (rows.length < R.MAX_ROWS) rows.splice(r + 1, 0, Array(cols).fill("")); break;
+    case "addRowAbove": if (rows.length < R.MAX_ROWS) rows.splice(r, 0, Array(cols).fill("")); break;
+    case "delRow": if (rows.length > 1) rows.splice(r, 1); break;
+    case "addCol": if (cols < R.MAX_COLS) rows.forEach((row) => row.splice(col + 1, 0, "")); break;
+    case "delCol": if (cols > 1) rows.forEach((row) => row.splice(col, 1)); break;
+    case "header": c.header = !c.header; break;
+    case "striped": c.striped = !c.striped; break;
+    case "border": c.border = arg; break;
+    case "borderColor": c.borderColor = arg; break;
+    case "headerBg": c.headerBg = arg; break;
+    case "alignCol": { const al = Array.isArray(c.align) ? [...c.align] : []; al[col] = arg; c.align = al; break; }
+  }
+  c.rows = rows;
+  await patchBlock(b, { content: c });
+  refreshBlock(b);
 }
 
 // Optimistic insert: the block appears (and takes focus) immediately so typing
@@ -576,11 +676,25 @@ function placeCaretAtEnd(el) {
 }
 
 function onBlockKey(e, b, ed) {
-  if (e.key === "Enter" && !e.shiftKey && b.type !== "code") {
+  if (e.altKey && e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+    e.preventDefault(); // keyboard alternative to drag-and-drop
+    saveEd(b, ed).then(() => moveBlock(b, e.key === "ArrowUp" ? -1 : 1)).then(() => {
+      $("blocks").querySelector(`.blk[data-id="${CSS.escape(b.id)}"] .ed`)?.focus();
+    });
+  } else if (e.key === "Enter" && !e.shiftKey && b.type !== "code") {
     e.preventDefault();
-    saveText(b, ed.innerText.replace(/\n$/, ""));
-    // Lists continue as lists; everything else continues as text.
-    insertBlockAfter(b, b.type === "checklist" ? "checklist" : "paragraph", b.type === "checklist" ? { text: "", checked: false } : { text: "" });
+    const empty = ed.innerText.trim() === "";
+    // An empty list item ends the list (like Word/Docs); otherwise lists continue.
+    if (empty && CONTINUES.has(b.type)) {
+      patchBlock(b, { type: "paragraph", content: { text: "", style: b.content?.style } }).then(() => { refreshBlock(b); $("blocks").querySelector(`.blk[data-id="${CSS.escape(b.id)}"] .ed`)?.focus(); });
+      return;
+    }
+    saveEd(b, ed);
+    const cont = CONTINUES.has(b.type);
+    // Alignment carries over to the next line; other formatting doesn't.
+    const align = b.content?.style?.align;
+    const content = { text: "", ...(b.type === "checklist" ? { checked: false } : {}), ...(align ? { style: { align } } : {}) };
+    insertBlockAfter(b, cont ? b.type : "paragraph", content);
   } else if (e.key === "Backspace" && ed.innerText.trim() === "" && b.type !== "code") {
     e.preventDefault();
     removeBlock(b, true);
@@ -599,16 +713,31 @@ async function moveBlock(b, dir) {
 }
 
 function blockMenu(anchor, b) {
-  const turnInto = (type, extra = {}) => ({ label: `Turn into ${type}`, run: () => patchBlock(b, { type, content: { text: R.textOf(b), ...extra } }).then(() => renderBlocks()) });
   const items = [
-    { label: "↑ Move up", run: () => moveBlock(b, -1) },
-    { label: "↓ Move down", run: () => moveBlock(b, 1) },
+    { label: "↑ Move up  (Alt+Shift+↑)", run: () => moveBlock(b, -1) },
+    { label: "↓ Move down  (Alt+Shift+↓)", run: () => moveBlock(b, 1) },
     { label: "＋ Insert text below", run: () => insertBlockAfter(b, "paragraph", { text: "" }) },
     { label: "― Insert divider below", run: () => insertBlockAfter(b, "divider") },
   ];
   if (TEXT_TYPES.has(b.type)) {
-    for (const t of ["paragraph", "heading", "checklist", "quote", "code"]) if (t !== b.type) items.push(turnInto(t, t === "checklist" ? { checked: false } : t === "heading" ? { level: 2 } : {}));
+    for (const t of TEXT_TYPES) if (t !== b.type) {
+      const extra = t === "checklist" ? { checked: false } : t === "heading" ? { level: 2 } : {};
+      items.push({ label: `Turn into ${TYPE_LABEL[t]}`, run: () => patchBlock(b, { type: t, content: { text: R.textOf(b), ...(t !== "code" && b.content?.rich ? { rich: b.content.rich } : {}), ...(b.content?.style ? { style: b.content.style } : {}), ...extra } }).then(() => renderBlocks()) });
+    }
   }
+  if (b.type === "table") {
+    items.push(
+      { label: "Table: add row below", run: () => tableOp(b, "addRow") },
+      { label: "Table: add row above", run: () => tableOp(b, "addRowAbove") },
+      { label: "Table: add column right", run: () => tableOp(b, "addCol") },
+      { label: "Table: delete row", run: () => tableOp(b, "delRow") },
+      { label: "Table: delete column", run: () => tableOp(b, "delCol") },
+      { label: `Table: header row ${b.content?.header ? "off" : "on"}`, run: () => tableOp(b, "header") },
+      { label: `Table: striped rows ${b.content?.striped ? "off" : "on"}`, run: () => tableOp(b, "striped") },
+    );
+  }
+  if (b.type === "signature" || b.type === "drawing") items.push({ label: "✍ Redraw", run: () => window.KinynxEditor?.openInkPad(b.type, b) });
+  items.push({ label: "⧉ Duplicate block", run: () => insertBlockAfter(b, b.type, structuredClone(b.content || {})) });
   if (b.type === "heading") for (const lv of [1, 2, 3]) items.push({ label: `Heading level ${lv}`, run: () => patchBlock(b, { content: { ...b.content, level: lv } }).then(() => renderBlocks()) });
   items.push({ label: "💬 Comment on block", run: () => commentOnBlock(b) });
   items.push({ label: "🗑 Delete block", run: () => removeBlock(b) });
@@ -616,7 +745,8 @@ function blockMenu(anchor, b) {
 }
 
 // Composer: pick a type or use a slash shortcut, Enter adds the block.
-const SLASH = { "/h": "heading", "/h1": "heading", "/todo": "checklist", "/check": "checklist", "/quote": "quote", "/code": "code", "/hr": "divider", "/divider": "divider", "/img": "image", "/link": "embed" };
+const SLASH = { "/h": "heading", "/h1": "heading", "/todo": "checklist", "/check": "checklist", "/quote": "quote", "/code": "code", "/hr": "divider", "/divider": "divider", "/img": "image", "/link": "embed",
+  "/ul": "bulleted_list", "/bullet": "bulleted_list", "/ol": "numbered_list", "/num": "numbered_list", "/table": "table", "/callout": "callout", "/sign": "signature", "/draw": "drawing" };
 $("composer").onsubmit = async (e) => {
   e.preventDefault();
   if (!state.pageId) return;
@@ -627,13 +757,16 @@ $("composer").onsubmit = async (e) => {
   let content;
   if (type === "divider") content = {};
   else if (type === "checklist") content = { text, checked: false };
+  else if (type === "table") content = { rows: [["", "", ""], ["", "", ""]], header: true };
+  else if (type === "callout") content = { text, icon: "💡" };
+  else if (type === "signature" || type === "drawing") { window.KinynxEditor?.openInkPad(type); $("blockText").value = ""; return; }
   else if (type === "heading") content = { text, level: m?.[1] === "/h1" ? 1 : 2 };
   else if (type === "image" || type === "embed") {
     const url = R.safeUrl(text.trim());
     if (!url) { toast("Enter an http(s) URL"); return; }
     content = { url, text: type === "embed" ? url : "" };
   } else content = { text };
-  if (type !== "divider" && !text.trim() && type !== "checklist") { toast("Type some content first"); return; }
+  if (!["divider", "checklist", "table", "bulleted_list", "numbered_list"].includes(type) && !text.trim()) { toast("Type some content first"); return; }
   await insertBlockAfter(null, type, content);
   $("blockText").value = "";
   if (type === "checklist") $("blockType").value = "checklist";

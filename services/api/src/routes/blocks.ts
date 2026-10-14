@@ -7,7 +7,18 @@ import { pageRole } from "../access.js";
 const BLOCK_TYPES = [
   "heading", "paragraph", "image", "file", "table", "database", "kanban",
   "checklist", "code", "quote", "divider", "embed", "child_page", "page_link",
+  "bulleted_list", "numbered_list", "callout", "signature", "drawing",
 ] as const;
+
+/**
+ * A signature's signer and time are stamped by the server from the
+ * authenticated user — never trusted from the client — so a signature block
+ * can't be forged in someone else's name. Any edit re-stamps it.
+ */
+function stampSignature(type: string, content: Record<string, unknown>, email: string): Record<string, unknown> {
+  if (type !== "signature") return content;
+  return { ...content, signed_by: email, signed_at: new Date().toISOString() };
+}
 
 /** Columns returned for a block, including authorship (resolved to emails for display). */
 const BLOCK_COLS = `id, parent_id, type, content, position, created_at, updated_at,
@@ -54,6 +65,7 @@ export async function registerBlockRoutes(app: FastifyInstance): Promise<void> {
       })
       .parse(request.body);
     assertCan(await pageRole(app.db, request.user!.id, pageId), "page:update");
+    body.content = stampSignature(body.type, body.content, request.user!.email);
 
     const rows = await query(
       app.db,
@@ -81,6 +93,15 @@ export async function registerBlockRoutes(app: FastifyInstance): Promise<void> {
     const ctx = await blockCtx(app, id);
     if (!ctx) return reply.code(404).send({ error: "not found" });
     assertCan(await pageRole(app.db, request.user!.id, ctx.page_id), "page:update");
+    if (body.content || body.type) {
+      const type = body.type ?? (await query<{ type: string }>(app.db, "SELECT type FROM blocks WHERE id = $1", [id]))[0]?.type ?? "";
+      if (type === "signature") {
+        const current = body.content
+          ?? (await query<{ content: Record<string, unknown> }>(app.db, "SELECT content FROM blocks WHERE id = $1", [id]))[0]?.content
+          ?? {};
+        body.content = stampSignature(type, current, request.user!.email);
+      }
+    }
 
     const rows = await query(
       app.db,

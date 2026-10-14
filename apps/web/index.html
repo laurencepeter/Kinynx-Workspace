@@ -30,6 +30,7 @@
       .spacer { flex: 1; }
       main { max-width: 1240px; margin: 0 auto; padding: 22px; }
       .grid { display: grid; grid-template-columns: 290px 1fr; gap: 22px; align-items: start; }
+      .grid > * { min-width: 0; }
       @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
       .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
       h2.section { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0; }
@@ -114,6 +115,58 @@
       .menu button { display: block; width: 100%; text-align: left; background: transparent; font-weight: 500; padding: 8px 10px; }
       .menu button:hover { background: var(--panel-2); }
       .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      dialog.wide { width: min(860px, 96vw); }
+
+      /* Formatting toolbar */
+      .fmt { position: sticky; top: 58px; z-index: 4; background: color-mix(in srgb, var(--panel) 94%, transparent);
+        backdrop-filter: blur(6px); border: 1px solid var(--border); border-radius: 10px; padding: 6px; margin: 0 0 12px; }
+      .fmt-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+      .fmt-tools { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+      .fmt-group { display: flex; flex-wrap: wrap; gap: 2px; padding-right: 10px; border-right: 1px solid var(--border); }
+      .fmt-group:last-child { border-right: 0; }
+      .fmt-btn { background: transparent; border: 1px solid transparent; color: var(--text); font-weight: 600; padding: 4px 8px;
+        min-width: 32px; height: 32px; font-size: 14px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; }
+      .fmt-btn:hover { background: var(--panel-2); filter: none; }
+      .fmt-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 28%, transparent); border-color: var(--accent); }
+      .fmt-color .bar { width: 16px; height: 3px; border-radius: 2px; margin-top: 1px; }
+      .fmt-select { width: auto; padding: 4px 6px; height: 32px; font-size: 13px; }
+      .fmt-all { padding: 5px 10px; font-size: 13px; }
+      .seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px; padding: 2px; }
+      .seg button { background: transparent; font-weight: 500; padding: 4px 10px; font-size: 12px; border-radius: 7px; color: var(--muted); }
+      .seg button[aria-checked="true"] { background: var(--accent); color: #fff; }
+      .swatch-menu { padding: 8px; width: 196px; }
+      .swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 8px; }
+      .menu .sw, .sw { width: 26px; height: 26px; padding: 0; border-radius: 6px; border: 1px solid var(--border); display: block; }
+      .catalog section + section { margin-top: 14px; }
+      .catalog h4 { margin: 0 0 6px; }
+      .cat-table { width: 100%; border-collapse: collapse; }
+      .cat-table td { padding: 6px 8px; border-top: 1px solid var(--border); vertical-align: top; }
+      .cat-ic { width: 36px; text-align: center; }
+      kbd { font: 12px ui-monospace, Menlo, monospace; background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; }
+      .inkpad-wrap { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+      .inkpad { display: block; width: 100%; height: auto; background: #fff; color: #1d1f27; touch-action: none; cursor: crosshair; border-radius: 8px; }
+
+      /* Drag & drop */
+      .blk .handle { cursor: grab; touch-action: none; user-select: none; }
+      .is-dragging, .is-dragging * { cursor: grabbing !important; user-select: none; }
+      .blk.dragging { opacity: .4; }
+      .drop-line { position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px; background: var(--accent-2);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 25%, transparent); pointer-events: none; }
+      #blocks { position: relative; }
+      @media (max-width: 860px) {
+        .fmt { position: static; }
+        .fmt-tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: 4px; }
+        .fmt-group { flex-wrap: nowrap; flex: none; }
+      }
+      @media (max-width: 600px) {
+        #whoami { display: none; }
+        header { padding: 10px 16px; } main { padding: 16px; }
+        .k-table-wrap { max-width: calc(100vw - 90px); }
+      }
+      .k-table .ed.cell { min-height: 1.5em; outline: none; }
+      .k-table td:focus-within, .k-table th:focus-within { box-shadow: inset 0 0 0 2px var(--accent); }
+      .k-table td, .k-table th { border-color: var(--border); }
+      .blk .k-callout { background: color-mix(in srgb, var(--accent) 14%, transparent); }
       .tpl { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; }
     </style>
   </head>
@@ -196,6 +249,7 @@
                   <button class="ghost" id="saveTplBtn">⧉ Save as template</button>
                   <button class="ghost" id="authorsBtn" aria-pressed="true">🎨 Authors</button>
                 </div>
+                <div class="fmt" id="fmtBar" aria-label="Formatting tools"></div>
                 <div class="contributors" id="contributors"></div>
                 <div id="blocks" class="show-authors"></div>
                 <form class="composer" id="composer">
@@ -203,13 +257,19 @@
                     <option value="paragraph">¶ Text</option>
                     <option value="heading">H Heading</option>
                     <option value="checklist">☑ Checklist</option>
+                    <option value="bulleted_list">• Bulleted list</option>
+                    <option value="numbered_list">1. Numbered list</option>
+                    <option value="table">▦ Table</option>
+                    <option value="callout">💡 Callout</option>
+                    <option value="signature">✍ Signature</option>
+                    <option value="drawing">✏️ Drawing</option>
                     <option value="quote">❝ Quote</option>
                     <option value="code">&lt;/&gt; Code</option>
                     <option value="divider">― Divider</option>
                     <option value="image">🖼 Image (URL)</option>
                     <option value="embed">🔗 Link</option>
                   </select>
-                  <input id="blockText" placeholder="Type and press Enter…  (/h /todo /quote /code /hr)" autocomplete="off" />
+                  <input id="blockText" placeholder="Type and press Enter…  (/h /ul /ol /todo /table /sign /quote /code /hr)" autocomplete="off" />
                   <button type="submit">Add</button>
                 </form>
               </div>
@@ -235,5 +295,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="/render.js"></script>
     <script src="/app.js"></script>
+    <script src="/editor.js"></script>
   </body>
 </html>

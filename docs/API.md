@@ -88,7 +88,22 @@ Blocks carry authorship: `created_by_email` / `updated_by_email` (who added /
 last edited each block), returned by `GET /api/pages/:id` and block mutations.
 
 **Block types:** `heading, paragraph, image, file, table, database, kanban,
-checklist, code, quote, divider, embed, child_page`.
+checklist, code, quote, divider, embed, child_page, page_link, bulleted_list,
+numbered_list, callout, signature, drawing`.
+
+Editor content conventions (all optional, inside `content`):
+
+| Key | Meaning |
+|---|---|
+| `text` | Plain text (always kept; used by search and Markdown export) |
+| `rich` | Inline-formatted HTML. **Untrusted** — clients rebuild it from an allowlist (`b i u s mark sub sup a span`, http(s) links, validated colour/size/font styles) and never assign it to `innerHTML` |
+| `style` | Block style: `align` (left/center/right/justify), `color`, `bg`, `size`, `font` (sans/serif/mono/rounded/hand), `lineHeight`, `indent` (0–8), `border` (solid/dashed/dotted/double), `borderColor`, `borderWidth`, `radius`, `padding` |
+| `rows` / `header` / `striped` / `border` / `borderColor` / `headerBg` / `align[]` | `table` blocks (max 100 rows × 20 columns rendered) |
+| `strokes` / `w` / `h` / `color` / `width` / `typed` | `signature` and `drawing` blocks (vector polylines, or a typed name) |
+
+`signature` blocks get `signed_by` (the authenticated user's email) and
+`signed_at` stamped **by the server** on every create/update; client-supplied
+values are overwritten.
 
 ## Search
 

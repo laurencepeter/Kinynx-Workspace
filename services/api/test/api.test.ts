@@ -151,6 +151,36 @@ test("blocks record who added and last edited them", { skip }, async () => {
   assert.equal(b.created_by_email, email);
 });
 
+test("signature blocks are stamped by the server, not the client", { skip }, async () => {
+  const auth = { authorization: `Bearer ${state.token}` };
+  const created = await app!.inject({
+    method: "POST",
+    url: `/api/pages/${state.pageId}/blocks`,
+    headers: auth,
+    payload: { type: "signature", content: { typed: "Ada", signed_by: "ceo@victim.example", signed_at: "2000-01-01T00:00:00Z" } },
+  });
+  assert.equal(created.statusCode, 201);
+  const signed = created.json().block.content;
+  assert.equal(signed.signed_by, email);
+  assert.notEqual(signed.signed_at, "2000-01-01T00:00:00Z");
+
+  // Re-signing via PATCH (content only, type omitted) re-stamps too.
+  const patched = await app!.inject({
+    method: "PATCH",
+    url: `/api/blocks/${created.json().block.id}`,
+    headers: auth,
+    payload: { content: { typed: "Ada L.", signed_by: "someone@else.example" } },
+  });
+  assert.equal(patched.statusCode, 200);
+  assert.equal(patched.json().block.content.signed_by, email);
+
+  // New editor block types are accepted.
+  for (const type of ["bulleted_list", "numbered_list", "callout", "drawing", "table"]) {
+    const res = await app!.inject({ method: "POST", url: `/api/pages/${state.pageId}/blocks`, headers: auth, payload: { type, content: {} } });
+    assert.equal(res.statusCode, 201, type);
+  }
+});
+
 test("rename and delete workspace / organization (with name confirmation)", { skip }, async () => {
   const auth = { authorization: `Bearer ${state.token}` };
   const org = (await app!.inject({ method: "POST", url: "/api/organizations", headers: auth, payload: { name: "Temp" } })).json()
