@@ -102,6 +102,14 @@ services:
       context: .
       dockerfile: infrastructure/docker/api.Dockerfile
     command: ["node", "dist/worker.js"]
+    # Override the API image's HTTP healthcheck (the worker serves no port):
+    # healthy while a maintenance tick has succeeded within ~2 intervals.
+    healthcheck:
+      test: ["CMD", "node", "-e", "const t=+require('fs').readFileSync('/tmp/kinynx-worker.heartbeat','utf8');process.exit(Date.now()-t<2*(+process.env.WORKER_INTERVAL_MS||900000)+60000?0:1)"]
+      interval: 60s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-kinynx}:${POSTGRES_PASSWORD:-change-me-in-production}@postgres:5432/${POSTGRES_DB:-kinynx}
       REDIS_URL: redis://redis:6379

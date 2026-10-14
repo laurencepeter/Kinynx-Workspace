@@ -64,11 +64,21 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/pages/:id", { preHandler: app.authenticate }, async (request, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
     assertCan(await pageRole(app.db, request.user!.id, id), "page:read");
-    const pages = await query(app.db, "SELECT id, workspace_id, parent_id, title, icon FROM pages WHERE id = $1", [id]);
+    const pages = await query(
+      app.db,
+      `SELECT p.id, p.workspace_id, p.parent_id, p.title, p.icon, p.created_at, p.updated_at, u.email AS created_by_email
+         FROM pages p LEFT JOIN users u ON u.id = p.created_by WHERE p.id = $1`,
+      [id],
+    );
     if (pages.length === 0) return reply.code(404).send({ error: "not found" });
     const blocks = await query(
       app.db,
-      "SELECT id, parent_id, type, content, position FROM blocks WHERE page_id = $1 ORDER BY position",
+      `SELECT b.id, b.parent_id, b.type, b.content, b.position, b.created_at, b.updated_at,
+              cu.email AS created_by_email, uu.email AS updated_by_email
+         FROM blocks b
+         LEFT JOIN users cu ON cu.id = b.created_by
+         LEFT JOIN users uu ON uu.id = b.updated_by
+        WHERE b.page_id = $1 ORDER BY b.position, b.created_at`,
       [id],
     );
     return reply.send({ page: pages[0], blocks });
