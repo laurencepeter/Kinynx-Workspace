@@ -29,6 +29,8 @@ export interface StorageDriver {
   presignPut?(key: string, contentType: string): Promise<string>;
   /** Optional: presigned direct-download URL (S3). */
   presignGet?(key: string): Promise<string>;
+  /** Optional: ensure the backing bucket exists (idempotent). */
+  ensureBucket?(): Promise<void>;
 }
 
 class LocalDriver implements StorageDriver {
@@ -107,6 +109,28 @@ class S3Driver implements StorageDriver {
   }
   async presignGet(key: string): Promise<string> {
     return this.presigner.getSignedUrl(this.client, new this.sdk.GetObjectCommand({ Bucket: this.config.S3_BUCKET, Key: key }), { expiresIn: 900 });
+  }
+  /**
+   * Create the bucket if it is missing. Idempotent and best-effort: a store
+   * with a pre-provisioned bucket (AWS S3, R2) or credentials lacking the
+   * create permission is fine — uploads still work. This replaces the need
+   * for an external bucket-bootstrap sidecar for self-hosted MinIO.
+   */
+  async ensureBucket(): Promise<void> {
+    try {
+      await this.client.send(new this.sdk.HeadBucketCommand({ Bucket: this.config.S3_BUCKET }));
+      return; // already exists and is reachable
+    } catch {
+      // Fall through to attempt creation.
+    }
+    try {
+      await this.client.send(new this.sdk.CreateBucketCommand({ Bucket: this.config.S3_BUCKET }));
+    } catch (err) {
+      const name = (err as { name?: string }).name ?? "";
+      // Already created (possibly by a peer replica) — not an error.
+      if (name === "BucketAlreadyOwnedByYou" || name === "BucketAlreadyExists") return;
+      throw err;
+    }
   }
 }
 
