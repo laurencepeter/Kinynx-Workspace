@@ -19,7 +19,10 @@ RUN pnpm --filter @kinynx/shared --filter @kinynx/permissions run build \
     && pnpm --filter @kinynx/api run build
 
 # Prune to production dependencies for the API.
-RUN pnpm --filter @kinynx/api deploy --prod /app
+# pnpm 10 requires --legacy to deploy workspaces that aren't injected
+# (workspace:* deps here are symlinked, not injected); --legacy copies the
+# built workspace packages (@kinynx/shared, @kinynx/permissions) into /app.
+RUN pnpm --filter @kinynx/api --prod --legacy deploy /app
 
 # ── Runtime stage ────────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runtime
