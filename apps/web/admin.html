@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kinynx Admin</title>
+    <style>
+      :root{--bg:#0e0f13;--panel:#171922;--panel-2:#1e2130;--border:#2a2e3f;--text:#e7e9f0;
+        --muted:#9aa0b4;--accent:#6d5efc;--accent-2:#22d3ee;--ok:#34d399;--danger:#f87171;--radius:12px}
+      *{box-sizing:border-box} body{margin:0;font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+        background:radial-gradient(1200px 600px at 80% -10%,#1b1e34,var(--bg));color:var(--text);min-height:100vh}
+      header{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--border)}
+      .logo{font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+      .spacer{flex:1} main{max-width:1000px;margin:0 auto;padding:22px}
+      input,button,textarea{font:inherit;border-radius:9px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:9px 12px}
+      button{cursor:pointer;background:linear-gradient(90deg,var(--accent),#8b7dff);border:none;font-weight:600}
+      .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:18px}
+      h2{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:0 0 12px}
+      .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+      .stat{background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:12px}
+      .stat .n{font-size:22px;font-weight:700} .stat .l{font-size:12px;color:var(--muted)}
+      .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+      .pill{font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--border)}
+      .pill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,var(--border))}
+      .pill.down{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 40%,var(--border))}
+      .badge{font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--border);color:var(--accent-2)}
+      textarea{width:100%;min-height:120px;font-family:ui-monospace,monospace;font-size:12px}
+      .muted{color:var(--muted)} .hidden{display:none} #auth{max-width:380px;margin:12vh auto}
+      #auth .card>*+*{margin-top:10px} #auth input{width:100%}
+      a{color:var(--accent-2)}
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="logo">◆ Kinynx</span><span class="muted">Admin Console</span>
+      <span class="spacer"></span><span class="badge" id="edition"></span>
+      <a href="./index.html" class="muted" style="text-decoration:none;margin-left:12px">← Docs</a>
+    </header>
+    <main>
+      <section id="auth"><div class="card">
+        <h2>Sign in (deployment admin)</h2>
+        <input id="email" placeholder="you@company.com" />
+        <input id="password" type="password" placeholder="Password" />
+        <button id="loginBtn">Sign in</button>
+        <p class="muted" style="font-size:12px">Requires an organization owner (or an ADMIN_EMAILS address).</p>
+      </div></section>
+
+      <section id="app" class="hidden">
+        <div class="card">
+          <h2>System health</h2>
+          <div class="row" id="health"></div>
+          <div class="row" id="drivers" style="margin-top:10px"></div>
+        </div>
+        <div class="card">
+          <h2>Usage</h2>
+          <div class="grid" id="stats"></div>
+        </div>
+        <div class="card">
+          <h2>License</h2>
+          <p id="licenseInfo" class="muted"></p>
+          <p class="muted" style="font-size:12px">Paste a signed license file <code>{ "payload": {…}, "signature": "…" }</code> to activate Enterprise at runtime:</p>
+          <textarea id="licenseText" placeholder='{"payload":{...},"signature":"..."}'></textarea>
+          <div class="row" style="margin-top:10px"><button id="uploadLicense">Activate license</button><span id="licenseMsg" class="muted"></span></div>
+        </div>
+      </section>
+    </main>
+    <script src="./admin.js"></script>
+  </body>
+</html>

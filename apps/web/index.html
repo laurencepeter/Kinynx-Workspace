@@ -69,6 +69,8 @@
       <span class="logo">◆ Kinynx</span>
       <span class="badge" id="edition">Community</span>
       <span class="spacer"></span>
+      <span class="small" id="presence"></span>
+      <button class="ghost" style="width:auto;position:relative" id="bell">🔔<span id="notifCount" class="chip" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--accent);color:#fff;padding:1px 6px">0</span></button>
       <span class="small muted" id="whoami"></span>
       <button class="ghost" style="width:auto" id="logout">Sign out</button>
     </header>
@@ -107,6 +109,7 @@
                 <input id="newWs" placeholder="New workspace" />
                 <button style="width:auto" id="addWs">+</button>
               </div>
+              <button class="ghost" id="invite" style="margin-top:8px">🔗 Copy invite link</button>
             </div>
             <div class="card">
               <h2>Pages</h2>
@@ -136,6 +139,14 @@
                 <button style="width:auto" id="addBlock">Add block</button>
               </div>
             </div>
+            <div class="card" id="commentsCard" style="display:none">
+              <h2>Comments</h2>
+              <div class="list" id="comments"></div>
+              <div class="row" style="margin-top:10px">
+                <input id="commentText" placeholder="Add a comment…" />
+                <button style="width:auto" id="addComment">Send</button>
+              </div>
+            </div>
             <div class="card">
               <h2>Edition &amp; entitlements</h2>
               <div class="feat" id="features"></div>
@@ -145,6 +156,10 @@
       </section>
     </main>
 
+    <div id="notifPanel" class="card" style="display:none;position:fixed;top:60px;right:22px;width:320px;max-height:60vh;overflow:auto;z-index:10">
+      <div class="row" style="justify-content:space-between"><h2>Notifications</h2><button class="ghost" style="width:auto;padding:4px 8px" id="markAll">Mark all read</button></div>
+      <div class="list" id="notifList"></div>
+    </div>
     <div class="toast" id="toast"></div>
     <script src="./app.js"></script>
   </body>

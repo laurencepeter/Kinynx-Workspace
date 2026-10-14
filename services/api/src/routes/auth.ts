@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { query } from "../db/pool.js";
+import { randomBytes } from "node:crypto";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { hashToken, newRefreshToken, signAccessToken } from "../auth/tokens.js";
+import { generateSecret, otpauthUri, verifyTotp } from "../auth/totp.js";
 
 const credentials = z.object({
   email: z.string().email(),
@@ -15,6 +17,8 @@ interface UserRow {
   email: string;
   display_name: string;
   password_hash: string | null;
+  mfa_secret?: string | null;
+  mfa_enabled?: boolean;
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
@@ -42,8 +46,12 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     };
   }
 
+  // Stricter per-route throttles on credential endpoints (brute-force defense),
+  // layered under the global limiter.
+  const tight = (max: number) => ({ config: { rateLimit: { max, timeWindow: "1 minute" } } });
+
   // POST /api/auth/register — email/password sign-up.
-  app.post("/api/auth/register", async (request, reply) => {
+  app.post("/api/auth/register", tight(30), async (request, reply) => {
     const body = credentials.parse(request.body);
     const existing = await query<UserRow>(app.db, "SELECT id FROM users WHERE email_norm = lower($1)", [
       body.email,
@@ -63,11 +71,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /api/auth/login
-  app.post("/api/auth/login", async (request, reply) => {
-    const body = z.object({ email: z.string().email(), password: z.string() }).parse(request.body);
+  app.post("/api/auth/login", tight(20), async (request, reply) => {
+    const body = z.object({ email: z.string().email(), password: z.string(), code: z.string().optional() }).parse(request.body);
     const rows = await query<UserRow>(
       app.db,
-      "SELECT id, email, display_name, password_hash FROM users WHERE email_norm = lower($1) AND is_active",
+      "SELECT id, email, display_name, password_hash, mfa_secret, mfa_enabled FROM users WHERE email_norm = lower($1) AND is_active",
       [body.email],
     );
     const user = rows[0];
@@ -77,8 +85,42 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       : await verifyPassword("$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHR2YWx1ZQ$0000000000000000000000000000000000000000000", body.password);
     if (!user || !ok) return reply.code(401).send({ error: "invalid credentials" });
 
+    // Second factor when enrolled.
+    if (user.mfa_enabled && user.mfa_secret) {
+      if (!body.code) return reply.code(401).send({ error: "mfa code required", mfa_required: true });
+      if (!verifyTotp(user.mfa_secret, body.code)) return reply.code(401).send({ error: "invalid mfa code", mfa_required: true });
+    }
+
     const session = await issueSession(user, request.headers["user-agent"], request.ip);
     return reply.send({ user: { id: user.id, email: user.email }, ...session });
+  });
+
+  // ── MFA (TOTP) enrollment ───────────────────────────────────────────────
+  // Begin setup: generate a secret (stored, not yet active) + an otpauth URI.
+  app.post("/api/auth/mfa/setup", { preHandler: app.authenticate }, async (request, reply) => {
+    const secret = generateSecret();
+    await query(app.db, "UPDATE users SET mfa_secret=$2, mfa_enabled=FALSE WHERE id=$1", [request.user!.id, secret]);
+    return reply.send({ secret, otpauth_uri: otpauthUri(secret, request.user!.email) });
+  });
+
+  // Confirm setup with a code from the authenticator app.
+  app.post("/api/auth/mfa/enable", { preHandler: app.authenticate, config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (request, reply) => {
+    const { code } = z.object({ code: z.string() }).parse(request.body);
+    const secret = (await query<{ mfa_secret: string | null }>(app.db, "SELECT mfa_secret FROM users WHERE id=$1", [request.user!.id]))[0]?.mfa_secret;
+    if (!secret) return reply.code(400).send({ error: "run /mfa/setup first" });
+    if (!verifyTotp(secret, code)) return reply.code(400).send({ error: "invalid code" });
+    await query(app.db, "UPDATE users SET mfa_enabled=TRUE WHERE id=$1", [request.user!.id]);
+    return reply.send({ ok: true });
+  });
+
+  // Disable MFA (requires a current code).
+  app.post("/api/auth/mfa/disable", { preHandler: app.authenticate, config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (request, reply) => {
+    const { code } = z.object({ code: z.string() }).parse(request.body);
+    const secret = (await query<{ mfa_secret: string | null }>(app.db, "SELECT mfa_secret FROM users WHERE id=$1 AND mfa_enabled", [request.user!.id]))[0]?.mfa_secret;
+    if (!secret) return reply.code(400).send({ error: "mfa not enabled" });
+    if (!verifyTotp(secret, code)) return reply.code(400).send({ error: "invalid code" });
+    await query(app.db, "UPDATE users SET mfa_enabled=FALSE, mfa_secret=NULL WHERE id=$1", [request.user!.id]);
+    return reply.code(204).send();
   });
 
   // POST /api/auth/refresh — rotate refresh token.
@@ -107,6 +149,83 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       hashToken(refresh_token),
     ]);
     return reply.code(204).send();
+  });
+
+  // POST /api/auth/magic-link/request — passwordless sign-in.
+  // Always returns 200 (no user enumeration). Emails a single-use link.
+  app.post("/api/auth/magic-link/request", tight(10), async (request, reply) => {
+    const { email } = z.object({ email: z.string().email() }).parse(request.body);
+    const raw = randomBytes(32).toString("base64url");
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    await query(app.db, "INSERT INTO magic_links (email, token_hash, expires_at) VALUES ($1,$2,$3)", [email, hashToken(raw), expires]);
+    const link = `${config.PUBLIC_APP_URL}/auth/magic/${raw}`;
+    await app.email
+      .send({ to: email, subject: "Your Kinynx sign-in link", html: `<p>Click to sign in (valid 15 minutes):</p><p><a href="${link}">${link}</a></p>` })
+      .catch((err) => app.log.warn(`magic-link email failed: ${(err as Error).message}`));
+    // Dev convenience: expose the link only when using the console email driver
+    // (no real inbox). Never returned once a real email provider is configured.
+    return reply.send(config.EMAIL_DRIVER === "console" ? { ok: true, dev_link: link } : { ok: true });
+  });
+
+  // POST /api/auth/magic-link/verify — redeem the token, create the user if new.
+  app.post("/api/auth/magic-link/verify", async (request, reply) => {
+    const { token } = z.object({ token: z.string().min(10) }).parse(request.body);
+    const row = (
+      await query<{ id: string; email: string }>(
+        app.db,
+        "SELECT id, email FROM magic_links WHERE token_hash=$1 AND used_at IS NULL AND expires_at > now()",
+        [hashToken(token)],
+      )
+    )[0];
+    if (!row) return reply.code(400).send({ error: "invalid or expired link" });
+    await query(app.db, "UPDATE magic_links SET used_at = now() WHERE id=$1", [row.id]);
+
+    let user = (await query<UserRow>(app.db, "SELECT id, email, display_name, password_hash FROM users WHERE email_norm = lower($1)", [row.email]))[0];
+    if (!user) {
+      user = (await query<UserRow>(app.db, "INSERT INTO users (email, display_name) VALUES ($1,$2) RETURNING id, email, display_name, password_hash", [row.email, row.email.split("@")[0]]))[0]!;
+    }
+    const session = await issueSession(user, request.headers["user-agent"], request.ip);
+    return reply.send({ user: { id: user.id, email: user.email }, ...session });
+  });
+
+  // POST /api/auth/password/forgot — always 200 (no enumeration); emails a link.
+  app.post("/api/auth/password/forgot", tight(10), async (request, reply) => {
+    const { email } = z.object({ email: z.string().email() }).parse(request.body);
+    const user = (await query<{ id: string }>(app.db, "SELECT id FROM users WHERE email_norm = lower($1) AND is_active", [email]))[0];
+    let devLink: string | undefined;
+    if (user) {
+      const raw = randomBytes(32).toString("base64url");
+      await query(app.db, "INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1,$2,$3)", [user.id, hashToken(raw), new Date(Date.now() + 30 * 60 * 1000)]);
+      const link = `${config.PUBLIC_APP_URL}/auth/reset/${raw}`;
+      devLink = config.EMAIL_DRIVER === "console" ? link : undefined;
+      await app.email
+        .send({ to: email, subject: "Reset your Kinynx password", html: `<p>Reset your password (valid 30 minutes):</p><p><a href="${link}">${link}</a></p>` })
+        .catch((err) => app.log.warn(`reset email failed: ${(err as Error).message}`));
+    }
+    return reply.send(devLink ? { ok: true, dev_link: devLink } : { ok: true });
+  });
+
+  // POST /api/auth/password/reset — set a new password, revoke all sessions.
+  app.post("/api/auth/password/reset", tight(10), async (request, reply) => {
+    const body = z.object({ token: z.string().min(10), password: z.string().min(8) }).parse(request.body);
+    const row = (await query<{ id: string; user_id: string }>(app.db, "SELECT id, user_id FROM password_resets WHERE token_hash=$1 AND used_at IS NULL AND expires_at > now()", [hashToken(body.token)]))[0];
+    if (!row) return reply.code(400).send({ error: "invalid or expired reset token" });
+    const hash = await hashPassword(body.password);
+    const client = await app.db.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("UPDATE users SET password_hash=$2 WHERE id=$1", [row.user_id, hash]);
+      await client.query("UPDATE password_resets SET used_at=now() WHERE id=$1", [row.id]);
+      // Revoke every existing session on password change.
+      await client.query("UPDATE refresh_tokens SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL", [row.user_id]);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+    return reply.send({ ok: true });
   });
 
   // GET /api/auth/me

@@ -30,7 +30,26 @@ a trust boundary.
 - **Input validation**: all request bodies/params/queries validated with Zod;
   parameterized SQL everywhere (no string-built queries).
 - **HTTP hardening**: Helmet security headers, CORS pinned to `PUBLIC_APP_URL`,
-  and rate limiting (300 req/min/IP default).
+  a global 300 req/min/IP limit, and **tighter per-route limits on credential
+  endpoints** (login 20/min, register 30/min, magic-link 10/min, MFA 10/min) to
+  blunt brute-force.
+- **MFA**: optional per-user TOTP (RFC 6238); an org can require it fleet-wide.
+- **Org security policies**: IPv4 allowlist and required-MFA, enforced at
+  authentication (Enterprise `advanced_security`).
+- **Compliance**: retention policies with legal-hold suspension of deletion.
+- **Published pages**: password protection uses Argon2id; the public read route
+  is rate-limited (60/min/IP) and passwords are ≥8 chars to blunt brute-force.
+
+## Review notes
+
+A full pass over the codebase confirmed: all SQL uses parameterized values (the
+sole dynamic table name, in retention jobs, is validated against a fixed
+allowlist); every public route is intentional (auth flows, published pages with
+password checks, the public template marketplace, and the WebSocket which
+authenticates inside the handler); mutating routes resolve scope from the target
+resource (no IDOR) and enforce permissions server-side; SSO signature
+verification is delegated to vetted libraries (jose, @node-saml/node-saml);
+secrets are never returned by list endpoints and never logged.
 - **Error handling**: a central handler avoids leaking internals; 5xx are logged
   server-side, clients get a generic message.
 - **Licensing**: Ed25519 signature verification is **offline**; there is no
