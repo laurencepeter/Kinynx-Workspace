@@ -9,6 +9,11 @@ const BLOCK_TYPES = [
   "checklist", "code", "quote", "divider", "embed", "child_page", "page_link",
 ] as const;
 
+/** Columns returned for a block, including authorship (resolved to emails for display). */
+const BLOCK_COLS = `id, parent_id, type, content, position, created_at, updated_at,
+  (SELECT email FROM users WHERE id = created_by) AS created_by_email,
+  (SELECT email FROM users WHERE id = updated_by) AS updated_by_email`;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface BlockCtx {
@@ -52,9 +57,9 @@ export async function registerBlockRoutes(app: FastifyInstance): Promise<void> {
 
     const rows = await query(
       app.db,
-      `INSERT INTO blocks (page_id, parent_id, type, content, position)
-       VALUES ($1,$2,$3,$4,COALESCE($5,'n')) RETURNING id, parent_id, type, content, position`,
-      [pageId, body.parent_id ?? null, body.type, JSON.stringify(body.content), body.position ?? null],
+      `INSERT INTO blocks (page_id, parent_id, type, content, position, created_by, updated_by)
+       VALUES ($1,$2,$3,$4,COALESCE($5,'n'),$6,$6) RETURNING ${BLOCK_COLS}`,
+      [pageId, body.parent_id ?? null, body.type, JSON.stringify(body.content), body.position ?? null, request.user!.id],
     );
     const block = rows[0]!;
     await syncLink(app, pageId, body.content);
@@ -66,16 +71,23 @@ export async function registerBlockRoutes(app: FastifyInstance): Promise<void> {
 
   app.patch("/api/blocks/:id", { preHandler: app.authenticate }, async (request, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
-    const body = z.object({ content: z.record(z.unknown()).optional(), position: z.string().max(64).optional() }).parse(request.body);
+    const body = z
+      .object({
+        content: z.record(z.unknown()).optional(),
+        position: z.string().max(64).optional(),
+        type: z.enum(BLOCK_TYPES).optional(),
+      })
+      .parse(request.body);
     const ctx = await blockCtx(app, id);
     if (!ctx) return reply.code(404).send({ error: "not found" });
     assertCan(await pageRole(app.db, request.user!.id, ctx.page_id), "page:update");
 
     const rows = await query(
       app.db,
-      `UPDATE blocks SET content = COALESCE($2, content), position = COALESCE($3, position), updated_at = now()
-        WHERE id = $1 RETURNING id, parent_id, type, content, position`,
-      [id, body.content ? JSON.stringify(body.content) : null, body.position ?? null],
+      `UPDATE blocks SET content = COALESCE($2, content), position = COALESCE($3, position),
+              type = COALESCE($4, type), updated_by = $5, updated_at = now()
+        WHERE id = $1 RETURNING ${BLOCK_COLS}`,
+      [id, body.content ? JSON.stringify(body.content) : null, body.position ?? null, body.type ?? null, request.user!.id],
     );
     if (body.content) await syncLink(app, ctx.page_id, body.content);
     const block = rows[0]!;

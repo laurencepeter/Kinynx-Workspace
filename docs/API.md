@@ -57,6 +57,8 @@ A **session** is `{ access_token, refresh_token, token_type: "Bearer", expires_i
 |---|---|---|---|
 | GET | `/api/organizations` | member | Orgs the caller belongs to |
 | POST | `/api/organizations` | — | Create org (caller becomes `owner`) |
+| PATCH | `/api/organizations/:id` | admin | Rename (`{ name }`) |
+| DELETE | `/api/organizations/:id` | owner | Delete org + everything in it. Body `{ confirm: <org name> }`; `409` under an active legal hold |
 | POST | `/api/organizations/:id/members` | admin | Add/update a member (enforces `max_users`) |
 
 ## Workspaces
@@ -66,6 +68,8 @@ A **session** is `{ access_token, refresh_token, token_type: "Bearer", expires_i
 | GET | `/api/organizations/:orgId/workspaces` | viewer | List workspaces |
 | POST | `/api/organizations/:orgId/workspaces` | admin | Create (enforces `max_workspaces`) |
 | GET | `/api/workspaces/:id` | viewer | Get one |
+| PATCH | `/api/workspaces/:id` | admin | Update `name`/`icon`/`color` |
+| DELETE | `/api/workspaces/:id` | admin | Delete workspace + pages. Body `{ confirm: <workspace name> }`; `409` under an active legal hold |
 
 ## Pages & blocks
 
@@ -77,8 +81,11 @@ A **session** is `{ access_token, refresh_token, token_type: "Bearer", expires_i
 | PATCH | `/api/pages/:id` | editor | Update title/icon |
 | DELETE | `/api/pages/:id` | editor | Archive (soft-delete) |
 | POST | `/api/pages/:pageId/blocks` | editor | Create block |
-| PATCH | `/api/blocks/:id` | editor | Update block content/position |
+| PATCH | `/api/blocks/:id` | editor | Update block `content`/`position`/`type` |
 | DELETE | `/api/blocks/:id` | editor | Delete block |
+
+Blocks carry authorship: `created_by_email` / `updated_by_email` (who added /
+last edited each block), returned by `GET /api/pages/:id` and block mutations.
 
 **Block types:** `heading, paragraph, image, file, table, database, kanban,
 checklist, code, quote, divider, embed, child_page`.

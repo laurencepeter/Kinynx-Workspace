@@ -43,6 +43,11 @@ Import the repo, use `docker-compose.yml` as the stack, set the values in
 Coolify's environment UI, and deploy. Step-by-step:
 [`infrastructure/coolify/README.md`](../infrastructure/coolify/README.md).
 
+**Set `PUBLIC_APP_URL` to your public origin** (e.g. `https://kinynx.example.com`).
+It defaults to `http://localhost`, which is what emailed invite / magic sign-in /
+password-reset links and published-page URLs are built from; the API logs a
+warning at boot in production while it still points at localhost.
+
 ## Kubernetes
 
 Ready-to-apply manifests are in

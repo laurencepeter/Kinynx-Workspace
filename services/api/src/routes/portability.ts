@@ -66,12 +66,10 @@ export async function importSubtree(
     )
   ).rows[0] as { id: string };
   for (const b of node.blocks ?? []) {
-    await client.query("INSERT INTO blocks (page_id, type, content, position) VALUES ($1,$2,$3,$4)", [
-      page.id,
-      b.type,
-      JSON.stringify(b.content ?? {}),
-      b.position ?? "n",
-    ]);
+    await client.query(
+      "INSERT INTO blocks (page_id, type, content, position, created_by, updated_by) VALUES ($1,$2,$3,$4,$5,$5)",
+      [page.id, b.type, JSON.stringify(b.content ?? {}), b.position ?? "n", userId],
+    );
   }
   for (const child of node.children ?? []) await importSubtree(client, workspaceId, page.id, child, userId);
   return page.id;

@@ -124,3 +124,64 @@ test("system info reports Community edition by default", { skip }, async () => {
   assert.equal(res.json().edition, "Community");
   assert.equal(res.json().features.databases, true);
 });
+
+test("blocks record who added and last edited them", { skip }, async () => {
+  const auth = { authorization: `Bearer ${state.token}` };
+  const created = await app!.inject({
+    method: "POST",
+    url: `/api/pages/${state.pageId}/blocks`,
+    headers: auth,
+    payload: { type: "checklist", content: { text: "Ship it", checked: false } },
+  });
+  assert.equal(created.statusCode, 201);
+  assert.equal(created.json().block.created_by_email, email);
+
+  const toggled = await app!.inject({
+    method: "PATCH",
+    url: `/api/blocks/${created.json().block.id}`,
+    headers: auth,
+    payload: { content: { text: "Ship it", checked: true } },
+  });
+  assert.equal(toggled.statusCode, 200);
+  assert.equal(toggled.json().block.content.checked, true);
+  assert.equal(toggled.json().block.updated_by_email, email);
+
+  const page = await app!.inject({ method: "GET", url: `/api/pages/${state.pageId}`, headers: auth });
+  const b = page.json().blocks.find((x: { id: string }) => x.id === created.json().block.id);
+  assert.equal(b.created_by_email, email);
+});
+
+test("rename and delete workspace / organization (with name confirmation)", { skip }, async () => {
+  const auth = { authorization: `Bearer ${state.token}` };
+  const org = (await app!.inject({ method: "POST", url: "/api/organizations", headers: auth, payload: { name: "Temp" } })).json()
+    .organization;
+  const ws = (
+    await app!.inject({ method: "POST", url: `/api/organizations/${org.id}/workspaces`, headers: auth, payload: { name: "Scratch" } })
+  ).json().workspace;
+
+  const renamed = await app!.inject({ method: "PATCH", url: `/api/workspaces/${ws.id}`, headers: auth, payload: { name: "Scratch 2" } });
+  assert.equal(renamed.json().workspace.name, "Scratch 2");
+
+  const badConfirm = await app!.inject({ method: "DELETE", url: `/api/workspaces/${ws.id}`, headers: auth, payload: { confirm: "nope" } });
+  assert.equal(badConfirm.statusCode, 400);
+  const wsDel = await app!.inject({ method: "DELETE", url: `/api/workspaces/${ws.id}`, headers: auth, payload: { confirm: "Scratch 2" } });
+  assert.equal(wsDel.statusCode, 204);
+
+  const orgRenamed = await app!.inject({ method: "PATCH", url: `/api/organizations/${org.id}`, headers: auth, payload: { name: "Temp Co" } });
+  assert.equal(orgRenamed.json().organization.name, "Temp Co");
+
+  // A non-member cannot delete it.
+  const other = (
+    await app!.inject({ method: "POST", url: "/api/auth/register", payload: { email: `o${Date.now()}@example.com`, password: "supersecret1" } })
+  ).json().access_token;
+  const forbidden = await app!.inject({
+    method: "DELETE",
+    url: `/api/organizations/${org.id}`,
+    headers: { authorization: `Bearer ${other}` },
+    payload: { confirm: "Temp Co" },
+  });
+  assert.equal(forbidden.statusCode, 403);
+
+  const orgDel = await app!.inject({ method: "DELETE", url: `/api/organizations/${org.id}`, headers: auth, payload: { confirm: "Temp Co" } });
+  assert.equal(orgDel.statusCode, 204);
+});
