@@ -4,13 +4,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Kinynx Admin</title>
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0e0f13" />
     <style>
       :root{--bg:#0e0f13;--panel:#171922;--panel-2:#1e2130;--border:#2a2e3f;--text:#e7e9f0;
         --muted:#9aa0b4;--accent:#6d5efc;--accent-2:#22d3ee;--ok:#34d399;--danger:#f87171;--radius:12px}
       *{box-sizing:border-box} body{margin:0;font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
         background:radial-gradient(1200px 600px at 80% -10%,#1b1e34,var(--bg));color:var(--text);min-height:100vh}
       header{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--border)}
-      .logo{font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+      .logo{display:inline-flex;align-items:center;gap:8px;font-weight:700;letter-spacing:-.01em;color:var(--text)}
       .spacer{flex:1} main{max-width:1000px;margin:0 auto;padding:22px}
       input,button,textarea{font:inherit;border-radius:9px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);padding:9px 12px}
       button{cursor:pointer;background:linear-gradient(90deg,var(--accent),#8b7dff);border:none;font-weight:600}
@@ -32,7 +37,7 @@
   </head>
   <body>
     <header>
-      <span class="logo">◆ Kinynx</span><span class="muted">Admin Console</span>
+      <span class="logo"><img src="/icon.svg" alt="" width="22" height="22" />Kinynx</span><span class="muted">Admin Console</span>
       <span class="spacer"></span><span class="badge" id="edition"></span>
       <a href="./index.html" class="muted" style="text-decoration:none;margin-left:12px">← Docs</a>
     </header>
