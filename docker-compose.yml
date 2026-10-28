@@ -91,11 +91,19 @@ services:
       timeout: 5s
       start_period: 60s
       retries: 3
+    # loadConfig() validates the same schema as the API, so JWT_SECRET is
+    # required here too or the worker crash-loops.
     environment:
+      NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER:-kinynx}:${POSTGRES_PASSWORD:-change-me-in-production}@postgres:5432/${POSTGRES_DB:-kinynx}
       REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me}
+    # Wait for the API: it applies migrations on boot, and the worker's first
+    # tick (which writes the healthcheck heartbeat) needs the schema.
     depends_on:
       postgres:
+        condition: service_healthy
+      api:
         condition: service_healthy
     restart: unless-stopped
 
