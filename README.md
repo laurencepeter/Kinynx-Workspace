@@ -23,7 +23,7 @@ cp .env.example .env          # then edit secrets
 docker compose up -d
 ```
 
-Open **http://localhost**. That's it — Postgres, Redis, object storage (MinIO),
+Open **http://localhost**. That's it — Postgres, Redis, file storage (local volume),
 the API, the web client, and a Caddy reverse proxy all come up together. The
 API applies database migrations automatically on boot. Works fully offline /
 air-gapped once images are pulled.
@@ -75,7 +75,7 @@ working even if a license server is unreachable. See [LICENSING](docs/LICENSING.
 - ✅ **Server-side** permission enforcement (Owner/Admin/Editor/Commenter/Viewer)
 - ✅ Central feature-flag / licensing system with offline Ed25519 verification
 - ✅ Postgres full-text search
-- ✅ Docker Compose deployment (Postgres, Redis, MinIO, Caddy)
+- ✅ Docker Compose deployment (Postgres, Redis, Caddy; optional MinIO overlay)
 
 **Phase 2 — Collaboration & project management**
 - ✅ **Realtime** presence + live-sync over WebSocket ("who's viewing/editing"),
