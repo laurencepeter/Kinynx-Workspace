@@ -31,6 +31,7 @@ air-gapped once images are pulled.
 Reference web clients (served statically):
 - **`/`** — docs & block editor (with presence, live-sync, invites)
 - **`/board.html`** — Kanban board with colour-coded status + live report
+- **`/insights.html`** — dashboards (charts, KPIs, tables), workflow editor, progress tracking (burn-up, throughput, lead time), editable data grid, report generation and workspace customization
 - **`/admin.html`** — admin console (health, usage, edition, license upload)
 
 ## Local development
