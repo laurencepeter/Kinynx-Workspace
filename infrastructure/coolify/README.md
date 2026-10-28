@@ -15,9 +15,10 @@
    - Email (`EMAIL_DRIVER=smtp`, `SMTP_*`) and SSO/AI vars as needed
 3. **Deploy.** Coolify builds the API/worker images and starts Postgres, Redis,
    API, worker, web, and Caddy. The API runs migrations on boot.
-4. **Domain & TLS.** Assign a domain in Coolify; it terminates TLS in front of
-   the stack. (You can drop the bundled `caddy` service and let Coolify's proxy
-   handle routing, or keep Caddy and expose only it.)
+4. **Domain & TLS.** Assign the domain to the **caddy** service (port 80).
+   The `web` service also proxies `/api` to the API, so assigning it there
+   works too — but never to `api` alone (the UI would 404). Coolify
+   terminates TLS in front of the stack.
 
 ## Notes
 
