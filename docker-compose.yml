@@ -31,30 +31,11 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # Optional object storage. OFF by default — the API uses the built-in
-  # `local` filesystem driver (persisted in the `uploads` volume) so the
-  # default stack has no external image dependency.
-  #
-  # MinIO's images were removed from Docker Hub in 2026 (and anonymous
-  # quay.io pulls were later restricted), so this is pinned to quay.io and
-  # gated behind a profile. Enable with:  docker compose --profile minio up -d
-  # and set  STORAGE_DRIVER=s3  (plus S3_* below). If quay.io refuses an
-  # anonymous pull in your region, use external S3/R2 or your own mirror.
-  minio:
-    image: quay.io/minio/minio:latest
-    profiles: ["minio"]
-    command: ["server", "/data", "--console-address", ":9001"]
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-kinynx}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-change-me-in-production}
-    volumes:
-      - miniodata:/data
-    healthcheck:
-      test: ["CMD-SHELL", "mc ready local || curl -fsS http://localhost:9000/minio/health/live || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+  # Object storage: the default is the built-in `local` filesystem driver
+  # (persisted in the `uploads` volume), so this file pulls no MinIO image.
+  # MinIO lives in docker-compose.minio.yml because quay.io/Docker Hub now
+  # refuse anonymous pulls, and platforms such as Coolify pull every service
+  # in this file, ignoring `profiles`.
 
   api:
     build:
@@ -68,8 +49,8 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me}
       # Default: local filesystem storage (persisted in the `uploads` volume).
-      # For S3/MinIO set STORAGE_DRIVER=s3 and the S3_* vars; enable the minio
-      # profile or point S3_ENDPOINT at external S3/R2.
+      # For S3/MinIO set STORAGE_DRIVER=s3 and the S3_* vars; add
+      # docker-compose.minio.yml or point S3_ENDPOINT at external S3/R2.
       STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
       STORAGE_LOCAL_DIR: /data/uploads
       S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
@@ -110,11 +91,19 @@ services:
       timeout: 5s
       start_period: 60s
       retries: 3
+    # loadConfig() validates the same schema as the API, so JWT_SECRET is
+    # required here too or the worker crash-loops.
     environment:
+      NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER:-kinynx}:${POSTGRES_PASSWORD:-change-me-in-production}@postgres:5432/${POSTGRES_DB:-kinynx}
       REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me}
+    # Wait for the API: it applies migrations on boot, and the worker's first
+    # tick (which writes the healthcheck heartbeat) needs the schema.
     depends_on:
       postgres:
+        condition: service_healthy
+      api:
         condition: service_healthy
     restart: unless-stopped
 
@@ -151,6 +140,5 @@ volumes:
   pgdata:
   redisdata:
   uploads:
-  miniodata:
   caddydata:
   caddyconfig:
