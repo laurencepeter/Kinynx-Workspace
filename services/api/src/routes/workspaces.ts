@@ -6,6 +6,28 @@ import { query } from "../db/pool.js";
 import { orgIdForWorkspace, orgRole, workspaceRole } from "../access.js";
 import { audit, hasActiveLegalHold } from "./organizations.js";
 
+const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+
+/**
+ * Workspace customization. Strict schema: only known keys with bounded values
+ * are stored, so settings can never become an arbitrary-JSON dumping ground.
+ * Navigation toggles are UX preferences, not access control.
+ */
+export const WorkspaceSettingsSchema = z
+  .object({
+    theme: z.enum(["dark", "light", "system"]),
+    accent: hex,
+    density: z.enum(["comfortable", "compact"]),
+    week_start: z.union([z.literal(0), z.literal(1)]),
+    date_format: z.enum(["YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY"]),
+    chart_palette: z.array(hex).min(1).max(8),
+    record_noun: z.string().trim().min(1).max(30),
+    default_dashboard_id: z.string().uuid().nullable(),
+    nav: z.object({ docs: z.boolean(), board: z.boolean(), insights: z.boolean() }).partial().strict(),
+  })
+  .partial()
+  .strict();
+
 export async function registerWorkspaceRoutes(app: FastifyInstance): Promise<void> {
   // List workspaces the caller can see within an organization.
   app.get("/api/organizations/:orgId/workspaces", { preHandler: app.authenticate }, async (request, reply) => {
@@ -45,7 +67,7 @@ export async function registerWorkspaceRoutes(app: FastifyInstance): Promise<voi
   app.get("/api/workspaces/:id", { preHandler: app.authenticate }, async (request, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
     assertCan(await workspaceRole(app.db, request.user!.id, id), "workspace:read");
-    const rows = await query(app.db, "SELECT id, organization_id, name, icon, created_at FROM workspaces WHERE id = $1", [id]);
+    const rows = await query(app.db, "SELECT id, organization_id, name, icon, color, settings, created_at FROM workspaces WHERE id = $1", [id]);
     if (rows.length === 0) return reply.code(404).send({ error: "not found" });
     return reply.send({ workspace: rows[0] });
   });
@@ -70,6 +92,28 @@ export async function registerWorkspaceRoutes(app: FastifyInstance): Promise<voi
     const orgId = (rows[0] as { organization_id: string }).organization_id;
     await audit(app, orgId, request.user!.id, "workspace.update", "workspace", id, request.ip);
     return reply.send({ workspace: rows[0] });
+  });
+
+  // Merge validated customization settings (send null for a key to reset it).
+  app.patch("/api/workspaces/:id/settings", { preHandler: app.authenticate }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const raw = z.record(z.unknown()).parse(request.body ?? {});
+    const known = WorkspaceSettingsSchema.keyof().options as string[];
+    const reset = Object.keys(raw).filter((k) => raw[k] === null && k !== "default_dashboard_id" && known.includes(k));
+    const body = WorkspaceSettingsSchema.parse(Object.fromEntries(Object.entries(raw).filter(([k]) => !reset.includes(k))));
+    assertCan(await workspaceRole(app.db, request.user!.id, id), "workspace:update");
+    if (body.default_dashboard_id) {
+      const own = await query(app.db, "SELECT 1 FROM dashboards WHERE id=$1 AND workspace_id=$2", [body.default_dashboard_id, id]);
+      if (own.length === 0) return reply.code(400).send({ error: "default_dashboard_id must be a dashboard in this workspace" });
+    }
+    const rows = await query<{ organization_id: string; settings: unknown }>(
+      app.db,
+      "UPDATE workspaces SET settings = (settings || $2::jsonb) - $3::text[] WHERE id = $1 RETURNING organization_id, settings",
+      [id, JSON.stringify(body), reset],
+    );
+    if (rows.length === 0) return reply.code(404).send({ error: "not found" });
+    await audit(app, rows[0]!.organization_id, request.user!.id, "workspace.settings", "workspace", id, request.ip);
+    return reply.send({ settings: rows[0]!.settings });
   });
 
   // Delete a workspace (and its pages/blocks). Requires echoing the name back.
