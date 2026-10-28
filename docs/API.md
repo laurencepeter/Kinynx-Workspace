@@ -131,6 +131,64 @@ arithmetic over other properties by name. **Rollup** properties:
 `config = { via: <relation propId>, target: <propId>, agg: count|sum|avg|min|max }`.
 Both are computed at read time and returned under each record's `computed` map.
 | GET | `/api/databases/:id/report?group_by=&progress=` | viewer | Statistics: counts per status (with colors) + progress rollup |
+| PATCH/DELETE | `/api/databases/:id` | editor | Rename / delete (body `{ confirm: "<name>" }`) |
+| DELETE | `/api/databases/properties/:propId` | editor | Delete a property and strip its values |
+| PATCH/DELETE | `/api/databases/views/:viewId` | editor | Update / delete a view |
+| GET | `/api/databases/:id/export.csv` | viewer | CSV export (cells starting `= + - @` are neutralised) |
+
+Record writes only accept keys that are `title` or a writable property of the
+same database (formula/rollup/created/updated values are server-derived).
+
+### Workflows & progress tracking
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| GET/PUT/DELETE | `/api/databases/:id/workflow` | viewer/editor | Read / upsert / remove the workflow |
+| GET | `/api/databases/:id/progress?days=30` | viewer | Snapshot by stage & category, completion %, overdue, WIP breaches, throughput/week, lead & cycle time, forecast, daily burn-up |
+| GET | `/api/databases/:id/activity?limit=&record_id=` | viewer | Change feed from the `record_events` log |
+
+Workflow body:
+```json
+{ "status_property_id": "<select prop>", "due_property_id": "<date prop|null>", "enforce": true,
+  "stages": [{ "name": "Todo", "color": "#3987e5", "category": "todo", "wip_limit": null },
+             { "name": "Doing", "color": "#c98500", "category": "active", "wip_limit": 3 },
+             { "name": "Done", "color": "#199e70", "category": "done" }],
+  "transitions": { "Todo": ["Doing"], "Doing": ["Done", "Todo"] } }
+```
+With `enforce`, record create/update returns **422** for an unknown stage or a
+disallowed move and **409** when the target stage is at its WIP limit. Moves are
+serialised per database (row lock), so limits hold under concurrency. Entering a
+`done` stage emits `task.completed` for automations. Saving a workflow syncs the
+select property's options to the stages.
+
+### Charts, dashboards & reports
+
+`POST /api/databases/:id/query` (viewer) runs a chart query:
+```json
+{ "filters": [{ "property": "<id|title|created_at>", "op": "eq|neq|contains|in|gt|gte|lt|lte|empty|not_empty|within_days", "value": "…" }],
+  "match": "all", "group_by": "<prop|created_at|updated_at>", "bucket": "day|week|month|quarter|year",
+  "split_by": "<prop>", "metric": { "agg": "count|sum|avg|min|max", "property": "<number/formula/rollup>" },
+  "cumulative": false, "sort": "natural|label|value_desc|value_asc", "limit": 50 }
+```
+→ `{ labels, series: [{ name, color, data, colors? }], total, metric }`.
+
+| Method | Path | Min role | Description |
+|---|---|---|---|
+| GET/POST | `/api/workspaces/:workspaceId/dashboards` | viewer/editor | List / create |
+| GET/PATCH/DELETE | `/api/dashboards/:id` | viewer/editor | Read / update `{name, description, widgets}` / delete |
+| GET | `/api/dashboards/:id/data` | viewer | Evaluate every widget |
+| GET | `/api/dashboards/:id/report?format=md\|csv\|html\|json` | viewer | Generated report (download; HTML has server-drawn SVG charts and a `sandbox` CSP) |
+
+Widget: `{ id, title, type: bar|column|stacked|line|area|donut|number|table|progress, database_id, query, days, w: 1-4 }`.
+Widgets may only reference databases in the dashboard's own workspace (checked on write and on every read).
+
+### Workspace customization
+
+`PATCH /api/workspaces/:id/settings` (admin) merges a strict schema — `theme`
+(dark/light/system), `accent` (#rrggbb), `density`, `week_start`, `date_format`,
+`chart_palette` (≤ 8 hex), `record_noun`, `default_dashboard_id`, `nav`
+`{docs,board,insights}`. Unknown keys are rejected; `null` resets a key.
+`GET /api/workspaces/:id` returns `settings`.
 
 ## History, versioning & audit
 

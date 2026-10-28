@@ -5,6 +5,7 @@ import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { ForbiddenError } from "@kinynx/permissions";
+import { ZodError } from "zod";
 import type { Config } from "./config.js";
 import { getPool } from "./db/pool.js";
 import { resolveEntitlements } from "./licensing.js";
@@ -26,6 +27,7 @@ import { registerSystemRoutes } from "./routes/system.js";
 import { registerGroupRoutes } from "./routes/groups.js";
 import { registerInvitationRoutes } from "./routes/invitations.js";
 import { registerDatabaseRoutes } from "./routes/databases.js";
+import { registerDashboardRoutes } from "./routes/dashboards.js";
 import { registerHistoryRoutes } from "./routes/history.js";
 import { registerPortabilityRoutes } from "./routes/portability.js";
 import { registerRealtimeRoutes } from "./routes/realtime.js";
@@ -120,6 +122,13 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   // Centralized error shaping (never leak internals).
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof ForbiddenError) return reply.code(403).send({ error: err.message });
+    // Zod input validation (every route parses with Zod) is a client error, not a 500.
+    if (err instanceof ZodError) {
+      return reply.code(400).send({
+        error: "validation failed",
+        details: err.issues.slice(0, 10).map((i) => ({ path: i.path.join("."), message: i.message })),
+      });
+    }
     const message = err instanceof Error ? err.message : "error";
     if ((err as { validation?: unknown }).validation) {
       return reply.code(400).send({ error: "validation failed", details: message });
@@ -138,6 +147,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(registerGroupRoutes);
   await app.register(registerInvitationRoutes);
   await app.register(registerDatabaseRoutes);
+  await app.register(registerDashboardRoutes);
   await app.register(registerHistoryRoutes);
   await app.register(registerPortabilityRoutes);
   await app.register(registerCommentRoutes);

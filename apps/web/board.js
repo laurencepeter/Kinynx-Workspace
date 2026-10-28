@@ -108,7 +108,11 @@ async function loadBoard() {
       if (status) {
         const sel = document.createElement("select");
         for (const o of options) { const op = document.createElement("option"); op.value = o.name; op.textContent = o.name; if ((rec.values[status.id]) === o.name) op.selected = true; sel.appendChild(op); }
-        sel.onchange = async () => { await api(`/records/${rec.id}`, { method: "PATCH", body: { values: { [status.id]: sel.value } } }); await loadBoard(); };
+        // The server enforces the workflow (allowed moves, WIP limits) — surface its answer.
+        sel.onchange = async () => {
+          try { await api(`/records/${rec.id}`, { method: "PATCH", body: { values: { [status.id]: sel.value } } }); } catch (e) { alert(e.message); }
+          await loadBoard();
+        };
         card.appendChild(sel);
       }
       col.appendChild(card);

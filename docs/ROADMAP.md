@@ -30,6 +30,27 @@ comments, realtime); the gap was mostly the web client. Tick items as they land.
 - [x] Web security headers (CSP, nosniff, no-referrer, frame-ancestors none)
 - [x] Worker container healthcheck (was always "unhealthy")
 
+## Phase 1.5 — Workflows, insights & reports ✅
+
+- [x] Per-database **workflows**: ordered stages with todo/active/done categories,
+      allowed-move matrix, WIP limits — enforced server-side (422/409)
+- [x] `record_events` change log → **progress tracking**: burn-up, throughput,
+      lead & cycle time, overdue, WIP breaches, completion forecast; activity feed
+- [x] **Chart query engine**: filters, group/split, date buckets, sum/avg/min/max, running totals
+- [x] **Dashboards** (`/insights.html`): bar, column, stacked, line, area, donut, KPI, table, progress widgets
+- [x] **Reports**: one-click Markdown / CSV / HTML (with charts) generation; database CSV export
+- [x] **Customization**: theme, accent, density, chart palette, record noun, nav, default dashboard
+- [x] Project-tracker starter (database + workflow + dashboard in one click)
+- [x] Data grid: inline edit, add/rename/delete properties, edit select options
+
+### Next for insights
+- [ ] Scheduled reports (worker emails a dashboard report weekly via the email driver)
+- [ ] Shareable read-only dashboards (reuse the publishing slug + password model)
+- [ ] Dashboard filters bar (date range / owner) applied to every widget
+- [ ] Gantt/timeline + calendar views over date properties
+- [ ] Drag-and-drop on the Kanban board, honouring workflow rules
+- [ ] Embedding a dashboard widget as a page block
+
 ## Phase 2 — Collaboration depth
 
 - [ ] Email confirmation on sign-up (`email_verified_at`, verify link via the email driver — Mailjet supported: `EMAIL_DRIVER=mailjet`)
